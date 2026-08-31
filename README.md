@@ -42,7 +42,6 @@ Requirements: Node.js 22.13 or newer and a Supabase project.
    - `SUPABASE_URL`
    - `SUPABASE_SECRET_KEY` (server-only; legacy
      `SUPABASE_SERVICE_ROLE_KEY` also works)
-   - `CRON_SECRET` (at least 16 random characters)
 
 4. Run:
 
@@ -63,17 +62,15 @@ project or no database credentials.
 each day. That is early morning in Auckland; Vercel cron schedules are always
 UTC. Cron invocations run only on the production deployment.
 
-Vercel automatically sends `Authorization: Bearer <CRON_SECRET>`. The route
-rejects requests without that exact header.
+The cron routes do not require an authorization secret. They can also be
+invoked manually over HTTPS, so avoid exposing destructive behavior in them.
 
 For a manual production check:
 
 ```bash
-curl -H "Authorization: Bearer $CRON_SECRET" \
-  https://your-project.vercel.app/api/cron/woolworths
+curl https://your-project.vercel.app/api/cron/woolworths
 
-curl -H "Authorization: Bearer $CRON_SECRET" \
-  https://your-project.vercel.app/api/cron/paknsave
+curl https://your-project.vercel.app/api/cron/paknsave
 ```
 
 ## Selecting the PAK'nSAVE store

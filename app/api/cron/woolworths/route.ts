@@ -16,18 +16,7 @@ function positiveInteger(value: string | undefined, fallback: number) {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function isAuthorized(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  return Boolean(
-    secret && request.headers.get('authorization') === `Bearer ${secret}`,
-  );
-}
-
 export async function GET(request: Request) {
-  if (!isAuthorized(request)) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   if (!isSupabaseConfigured()) {
     return Response.json(
       { error: 'Supabase is not configured on the server.' },
