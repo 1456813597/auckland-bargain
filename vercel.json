@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/cron/woolworths",
+      "schedule": "10 17 * * *"
+    },
+    {
+      "path": "/api/cron/paknsave",
+      "schedule": "25 17 * * *"
+    }
+  ]
+}

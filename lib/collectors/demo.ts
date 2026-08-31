@@ -17,10 +17,18 @@ export class DemoCollector implements RetailerCollector {
       {
         sourceProductId: `whittakers-250-${store.sourceStoreId}`,
         sourceName: "Whittaker’s Creamy Milk Chocolate 250g",
+        brand: "Whittakers",
+        category: "Snacks",
+        size: "250g",
+        gtin: null,
+        imageUrl: null,
+        sourceUrl: "https://example.com/demo-product",
         regularPriceCents: 679,
         promoPriceCents: 499,
         memberPriceCents: null,
+        promotionType: "SPECIAL",
         promotionText: "Demo 90-day low",
+        validUntil: null,
         collectedAt: new Date(),
       },
     ];

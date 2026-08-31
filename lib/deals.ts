@@ -1,5 +1,5 @@
-export type Retailer = "PAK’nSAVE" | "New World" | "Woolworths";
-export type Category = "Dairy" | "Snacks" | "Pantry" | "Produce" | "Household";
+export type Retailer = string;
+export type Category = string;
 
 export type PricePoint = { date: string; price: number };
 
@@ -18,6 +18,7 @@ export type Deal = {
   score: number;
   promotion: string;
   memberOnly: boolean;
+  imageUrl?: string;
   color: string;
   history: PricePoint[];
 };

@@ -1,4 +1,6 @@
 import { demoDeals, discountPercent } from "@/lib/deals";
+import { isSupabaseConfigured } from "@/db/supabase";
+import { getCurrentDeals } from "@/lib/repositories/deals";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -7,7 +9,12 @@ export async function GET(request: Request) {
   const category = url.searchParams.get("category")?.toLowerCase();
   const minimumDiscount = Number(url.searchParams.get("minDiscount") ?? 0);
 
-  const deals = demoDeals.filter((deal) => {
+  const configured = isSupabaseConfigured();
+  const source = configured
+    ? await getCurrentDeals()
+    : { deals: demoDeals, updatedAt: null };
+
+  const deals = source.deals.filter((deal) => {
     const searchable = `${deal.name} ${deal.brand} ${deal.store} ${deal.category}`.toLowerCase();
     return (
       (!query || searchable.includes(query)) &&
@@ -23,7 +30,8 @@ export async function GET(request: Request) {
       count: deals.length,
       currency: "NZD",
       timezone: "Pacific/Auckland",
-      demo: true,
+      demo: !configured,
+      updatedAt: source.updatedAt,
     },
   });
 }

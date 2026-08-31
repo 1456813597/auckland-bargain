@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight,
   Bell,
@@ -35,19 +36,20 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import {
-  categories,
   demoDeals,
   discountPercent,
   money,
-  retailers,
-  type Category,
   type Deal,
-  type Retailer,
 } from "@/lib/deals";
 
-type CategoryFilter = "All" | Category;
-type RetailerFilter = "All retailers" | Retailer;
+type CategoryFilter = string;
+type RetailerFilter = string;
 type SortMode = "score" | "saving" | "price";
+
+type DealsMeta = {
+  demo: boolean;
+  updatedAt: string | null;
+};
 
 const chartConfig = {
   price: { label: "Price", color: "var(--color-primary)" },
@@ -69,8 +71,18 @@ function DealCard({ deal, onOpen }: { deal: Deal; onOpen: (deal: Deal) => void }
             <CardTitle className="text-lg font-bold tracking-tight">{deal.name}</CardTitle>
             <p className="mt-0.5 text-xs text-muted-foreground">{deal.size} · {deal.category}</p>
           </div>
-          <div className="grid size-11 shrink-0 place-items-center rounded-xl text-sm font-extrabold text-[#25392e]" style={{ backgroundColor: `${deal.color}55` }} aria-hidden="true">
-            {deal.brand.slice(0, 2).toUpperCase()}
+          <div className="relative grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl text-sm font-extrabold text-[#25392e]" style={{ backgroundColor: `${deal.color}55` }} aria-hidden="true">
+            {deal.imageUrl ? (
+              <Image
+                src={deal.imageUrl}
+                alt=""
+                fill
+                sizes="44px"
+                className="object-contain"
+              />
+            ) : (
+              deal.brand.slice(0, 2).toUpperCase()
+            )}
           </div>
         </div>
       </CardHeader>
@@ -162,6 +174,11 @@ function DealDetail({ deal, onClose }: { deal: Deal | null; onClose: () => void 
 }
 
 export default function Home() {
+  const [deals, setDeals] = useState<Deal[]>(demoDeals);
+  const [dataMeta, setDataMeta] = useState<DealsMeta>({
+    demo: true,
+    updatedAt: null,
+  });
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("All");
   const [retailer, setRetailer] = useState<RetailerFilter>("All retailers");
@@ -169,9 +186,32 @@ export default function Home() {
   const [memberPrices, setMemberPrices] = useState(true);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
 
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch("/api/deals", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Deals request failed");
+        return response.json() as Promise<{
+          data: Deal[];
+          meta: DealsMeta;
+        }>;
+      })
+      .then((payload) => {
+        setDeals(payload.data);
+        setDataMeta(payload.meta);
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        console.error("Could not load current deals", error);
+      });
+
+    return () => controller.abort();
+  }, []);
+
   const visibleDeals = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return demoDeals
+    return deals
       .filter((deal) => category === "All" || deal.category === category)
       .filter((deal) => retailer === "All retailers" || deal.retailer === retailer)
       .filter((deal) => memberPrices || !deal.memberOnly)
@@ -181,7 +221,29 @@ export default function Home() {
         if (sort === "saving") return discountPercent(b) - discountPercent(a);
         return b.score - a.score;
       });
-  }, [category, memberPrices, query, retailer, sort]);
+  }, [category, deals, memberPrices, query, retailer, sort]);
+
+  const categoryOptions = useMemo(
+    () => ["All", ...new Set(deals.map((deal) => deal.category))],
+    [deals],
+  );
+  const retailerOptions = useMemo(
+    () => ["All retailers", ...new Set(deals.map((deal) => deal.retailer))],
+    [deals],
+  );
+  const standout = deals[0] ?? demoDeals[0];
+  const storeCount = new Set(deals.map((deal) => deal.store)).size;
+  const possibleSaving = deals.reduce(
+    (total, deal) => total + Math.max(0, deal.regularPrice - deal.price),
+    0,
+  );
+  const updatedLabel = dataMeta.updatedAt
+    ? new Intl.DateTimeFormat("en-NZ", {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: "Pacific/Auckland",
+      }).format(new Date(dataMeta.updatedAt))
+    : "preview data";
 
   const resetFilters = () => {
     setQuery("");
@@ -202,7 +264,7 @@ export default function Home() {
             </span>
           </a>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="hidden border-primary/20 bg-primary/5 text-primary md:inline-flex"><Clock3 data-icon="inline-start" /> Updated 6:10am</Badge>
+            <Badge variant="outline" className="hidden border-primary/20 bg-primary/5 text-primary md:inline-flex"><Clock3 data-icon="inline-start" /> Updated {updatedLabel}</Badge>
             <Button variant="outline" size="lg" className="rounded-full px-3.5"><MapPin data-icon="inline-start" /> Auckland <ChevronDown data-icon="inline-end" /></Button>
           </div>
         </div>
@@ -224,17 +286,17 @@ export default function Home() {
 
         <section className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
           <div className="relative isolate min-h-64 overflow-hidden rounded-[1.7rem] bg-primary p-6 text-primary-foreground sm:p-8">
-            <img src="/og.png" alt="A paper bag filled with fresh groceries" className="absolute inset-y-0 right-0 -z-10 h-full w-[58%] object-cover object-right opacity-90 [mask-image:linear-gradient(to_right,transparent,black_32%)]" />
+            <Image src="/og.png" alt="A paper bag filled with fresh groceries" fill priority sizes="(min-width: 1024px) 45vw, 100vw" className="absolute -z-10 object-cover object-right opacity-90 [mask-image:linear-gradient(to_right,transparent,black_32%)]" />
             <div className="max-w-sm">
               <Badge className="mb-5 bg-[#f4b942] text-[#25392e] hover:bg-[#f4b942]"><Flame data-icon="inline-start" /> Today’s standout</Badge>
-              <p className="text-sm font-semibold text-primary-foreground/70">Whittaker’s 250g</p>
-              <div className="mt-1 flex items-end gap-3"><span className="font-heading text-5xl font-extrabold tracking-[-0.06em]">$4.99</span><span className="mb-1.5 text-sm text-primary-foreground/70 line-through">$6.52 avg</span></div>
-              <p className="mt-3 flex items-center gap-2 text-sm font-semibold"><TrendingDown className="size-4 text-[#f4b942]" /> 23% below its 90-day average</p>
-              <Button variant="secondary" className="mt-6 bg-background text-foreground hover:bg-background/90" onClick={() => setSelectedDeal(demoDeals[0])}>See price history <ArrowDownRight data-icon="inline-end" /></Button>
+              <p className="text-sm font-semibold text-primary-foreground/70">{standout.name} · {standout.size}</p>
+              <div className="mt-1 flex items-end gap-3"><span className="font-heading text-5xl font-extrabold tracking-[-0.06em]">{money.format(standout.price)}</span><span className="mb-1.5 text-sm text-primary-foreground/70 line-through">{money.format(standout.average90d)} avg</span></div>
+              <p className="mt-3 flex items-center gap-2 text-sm font-semibold"><TrendingDown className="size-4 text-[#f4b942]" /> {discountPercent(standout)}% below its 90-day average</p>
+              <Button variant="secondary" className="mt-6 bg-background text-foreground hover:bg-background/90" onClick={() => setSelectedDeal(standout)}>See price history <ArrowDownRight data-icon="inline-end" /></Button>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[1.7rem] border border-foreground/10 bg-foreground/10">
-            {[["47", "strong deals today"], ["$18.70", "possible basket saving"], ["3", "retailers compared"], ["12", "Auckland stores"]].map(([value, label]) => <div key={label} className="bg-card p-5 sm:p-6"><strong className="block font-heading text-2xl tracking-tight sm:text-3xl">{value}</strong><span className="mt-1 block text-xs leading-4 text-muted-foreground">{label}</span></div>)}
+            {[[String(deals.length), "strong deals today"], [money.format(possibleSaving), "possible basket saving"], [String(retailerOptions.length - 1), "retailers compared"], [String(storeCount), "Auckland stores"]].map(([value, label]) => <div key={label} className="bg-card p-5 sm:p-6"><strong className="block font-heading text-2xl tracking-tight sm:text-3xl">{value}</strong><span className="mt-1 block text-xs leading-4 text-muted-foreground">{label}</span></div>)}
           </div>
         </section>
 
@@ -249,7 +311,7 @@ export default function Home() {
               <div className="relative">
                 <Store className="pointer-events-none absolute left-2.5 top-1/2 z-10 size-3.5 -translate-y-1/2 text-muted-foreground" />
                 <NativeSelect value={retailer} onChange={(event) => setRetailer(event.target.value as RetailerFilter)} className="bg-card [&_select]:pl-8" aria-label="Filter by retailer">
-                  {retailers.map((item) => <NativeSelectOption key={item} value={item}>{item}</NativeSelectOption>)}
+                  {retailerOptions.map((item) => <NativeSelectOption key={item} value={item}>{item}</NativeSelectOption>)}
                 </NativeSelect>
               </div>
               <div className="relative">
@@ -263,9 +325,10 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-5 flex gap-2 overflow-x-auto pb-2" role="group" aria-label="Filter by category">
-            {categories.map((item) => <Button key={item} size="sm" variant={category === item ? "default" : "outline"} className="shrink-0 rounded-full px-3.5" onClick={() => setCategory(item as CategoryFilter)}>{item}</Button>)}
-          </div>
+          <fieldset className="mt-5 flex gap-2 overflow-x-auto pb-2">
+            <legend className="sr-only">Filter by category</legend>
+            {categoryOptions.map((item) => <Button key={item} size="sm" variant={category === item ? "default" : "outline"} className="shrink-0 rounded-full px-3.5" onClick={() => setCategory(item as CategoryFilter)}>{item}</Button>)}
+          </fieldset>
 
           <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground"><span>{visibleDeals.length} matching deals</span><span className="hidden sm:inline">Tap a card arrow to inspect its history</span></div>
 
@@ -277,7 +340,7 @@ export default function Home() {
         </section>
 
         <footer className="mt-12 flex flex-col justify-between gap-2 border-t border-foreground/10 pt-5 text-[11px] leading-5 text-muted-foreground sm:flex-row">
-          <p>MVP preview · Prices and history are demonstration data, not live supermarket listings.</p>
+          <p>{dataMeta.demo ? "Preview mode · Add Supabase server credentials to show collected prices." : "Live Woolworths prices · Change-only history stored in Supabase."}</p>
           <p>Built for Auckland shoppers · Pacific/Auckland</p>
         </footer>
       </div>
