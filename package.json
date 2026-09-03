@@ -8,12 +8,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:vercel": "node scripts/vercel-build.mjs",
     "start": "next start",
     "test": "tsx --test test/**/*.test.ts",
     "deals:refresh": "tsx scripts/refresh-local-deals.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "release:ready": "tsx scripts/check-release-readiness.ts",
     "lint": "oxlint",
+    "lint:type-aware": "oxlint --type-aware --type-check",
     "format": "oxfmt"
   },
   "dependencies": {
@@ -47,6 +49,7 @@
     "oxfmt": "0.61.0",
     "oxlint": "1.76.0",
     "oxlint-tsgolint": "7.0.2001",
+    "supabase": "2.116.0",
     "tailwindcss": "4.2.1",
     "tsx": "4.23.13",
     "typescript": "5.9.3"

@@ -95,16 +95,21 @@ you want a shared fallback dataset.
 Create a Vercel project from this repository and add the required variables to
 the Production environment. Preview deployments should use a separate Supabase
 project or no database credentials. Vercel's Git integration automatically
-builds commits pushed to `main`. The Production deployment is gated on the
-GitHub status `Vercel - auckland-bargain: ci`, which is published by the
-`deploy` job after its quality checks and database migrations finish. Vercel
-promotes the build to the production domain only after that status succeeds.
+builds commits pushed to `main`; GitHub Actions is not part of the deployment
+pipeline and the GitHub repository requires no deployment secrets.
 
-Configure these encrypted GitHub Actions secrets:
+`vercel.json` runs `npm run build:vercel` as the Build Command. Every Vercel
+build runs the tests, type checking, lint, the HTTP migration-route guard and
+the Next.js production build. When `VERCEL_ENV=production`, the same command
+also applies pending Supabase migrations and verifies database readiness before
+building. Preview builds never link to or migrate the production database.
 
-- `SUPABASE_ACCESS_TOKEN`
-- `SUPABASE_PROJECT_ID`
-- `SUPABASE_DB_PASSWORD`
+The connected Supabase integration injects `POSTGRES_URL_NON_POOLING`, which the
+Production build uses for migrations without a Supabase access token or GitHub
+secret. If the integration is not connected, add `POSTGRES_URL_NON_POOLING` as
+a Sensitive Environment Variable scoped only to Vercel Production. Configure
+the remaining application variables documented in `.env.example` in Vercel as
+well.
 
 Before the first workflow run, compare local and remote migration history:
 
@@ -122,14 +127,12 @@ supabase migration list
 ```
 
 Only use `migration repair` after confirming the schema objects already exist.
-Subsequent migrations are applied automatically by CI.
+Subsequent migrations are applied automatically by the Vercel Production build.
 
-On every push to `main`, the production workflow runs tests, type checking and
-lint, applies pending migrations, verifies database readiness and the required
-cron secret, builds the Vercel artifact, and only then deploys it. Keep
-production migrations backward compatible with the currently running
-application because the migration is applied immediately before the replacement
-deployment becomes live.
+On every push to `main`, Vercel runs the complete production pipeline and only
+publishes a successful build. Keep production migrations backward compatible
+with the currently running application because the migration is applied during
+the build, before the replacement deployment becomes live.
 
 Create a public Blob store and connect it to the Vercel project. Vercel injects
 `BLOB_READ_WRITE_TOKEN` for the connected environments. During collection,
@@ -165,8 +168,8 @@ curl https://your-project.vercel.app/api/health/ready
 ```
 
 It returns HTTP 200 only when the application and database schema are ready;
-otherwise it returns HTTP 503. The production workflow runs the same check
-directly against the production Supabase environment before building.
+otherwise it returns HTTP 503. The Vercel Production build runs the same check
+directly against the production Supabase environment before `next build`.
 
 Never add a route such as `/api/internal/apply-migration`. If an old immutable
 Preview Deployment contains one, remove that deployment from Vercel rather than

@@ -360,7 +360,7 @@ $BaseUrl = 'https://YOUR_PRODUCTION_DOMAIN'
 vercel inspect $BaseUrl
 ```
 
-先确认该 URL 是当前 Production 部署。生产发布由 `.github/workflows/production.yml` 管理：测试、类型检查、Lint、数据库迁移、readiness、Vercel 构建都成功后才部署。还应检查对应 GitHub Actions workflow 全绿。
+先确认该 URL 是当前 Production 部署。生产发布由 Vercel Git Integration 和仓库中的 `build:vercel` 命令管理：测试、类型检查、Lint、数据库迁移、readiness、Next.js 构建都成功后才发布。还应检查对应 Vercel Build Logs 全部通过。
 
 ### 7.2 生产只读冒烟测试
 
@@ -419,7 +419,7 @@ if ($product.data.id -ne $productionDeals.data[0].id) { throw 'Product detail ID
 
 - 已确认 Production URL 和当前部署版本。
 - readiness 为 `200`。
-- GitHub Actions 的数据库迁移和部署步骤成功。
+- Vercel Production Build Logs 中的数据库迁移和部署步骤成功。
 - 已检查当前没有同门店的 `running` 采集。
 - 已告知相关人员本次测试会写生产数据并调用外部零售商。
 - 有查看 Vercel Function Logs 和 Supabase 数据的权限。
@@ -478,7 +478,7 @@ Remove-Variable CronSecret
 5. 测试 Supabase migration list / db push --dry-run
 6. npm run release:ready
 7. 本地生产模式 API + UI
-8. GitHub Actions 部署全绿
+8. Vercel Production 构建和部署成功
 9. 生产 readiness
 10. 生产只读 API 冒烟
 11. 生产 UI 关键路径
