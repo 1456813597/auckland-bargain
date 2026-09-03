@@ -94,18 +94,17 @@ you want a shared fallback dataset.
 
 Create a Vercel project from this repository and add the required variables to
 the Production environment. Preview deployments should use a separate Supabase
-project or no database credentials. `vercel.json` disables Vercel's automatic
-deployment for `main`; `.github/workflows/production.yml` owns production
-releases so application code cannot deploy ahead of its database migrations.
+project or no database credentials. Vercel's Git integration automatically
+builds commits pushed to `main`. The Production deployment is gated on the
+GitHub status `Vercel - auckland-bargain: ci`, which is published by the
+`deploy` job after its quality checks and database migrations finish. Vercel
+promotes the build to the production domain only after that status succeeds.
 
 Configure these encrypted GitHub Actions secrets:
 
 - `SUPABASE_ACCESS_TOKEN`
 - `SUPABASE_PROJECT_ID`
 - `SUPABASE_DB_PASSWORD`
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
 
 Before the first workflow run, compare local and remote migration history:
 
