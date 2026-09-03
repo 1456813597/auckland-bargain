@@ -70,6 +70,31 @@ describe("toWoolworthsOffer", () => {
     assert.equal(offer.promotionType, "MEMBER_PRICE");
   });
 
+  it("labels half-price and better-than-half-price offers from real prices", () => {
+    const halfPrice = toWoolworthsOffer(
+      {
+        sku: "half",
+        name: "half price product",
+        price: { originalPrice: 10, salePrice: 5, isSpecial: true },
+      },
+      collectedAt,
+    );
+    const betterThanHalfPrice = toWoolworthsOffer(
+      {
+        sku: "better",
+        name: "better than half price product",
+        price: { originalPrice: 10, salePrice: 4, isSpecial: true },
+      },
+      collectedAt,
+    );
+
+    assert.equal(halfPrice?.promotionText, "Half price");
+    assert.equal(
+      betterThanHalfPrice?.promotionText,
+      "Better than half price",
+    );
+  });
+
   it("rejects products without an SKU or usable price", () => {
     assert.equal(
       toWoolworthsOffer({ name: "missing sku" }, collectedAt),

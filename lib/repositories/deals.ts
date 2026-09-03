@@ -1,7 +1,18 @@
 import { getSupabaseAdmin } from '@/db/supabase';
+import {
+  advertisedDiscountPercent,
+  dealEvidencePercent,
+  historicalDiscountEvidence,
+  isStrongDeal,
+  PAKNSAVE_MIN_ADVERTISED_DISCOUNT,
+  PAKNSAVE_MIN_HISTORICAL_DISCOUNT,
+  promotionLabelForDiscount,
+  WOOLWORTHS_MIN_ADVERTISED_DISCOUNT,
+} from '@/lib/deal-quality';
 import type { Deal, PricePoint } from '@/lib/deals';
 
 type CurrentDealRow = {
+  offer_id: number;
   retailer_product_id: number;
   store_id: number;
   source_product_id: string;
@@ -55,33 +66,69 @@ function historyPoints(
 
 export async function getCurrentDeals() {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from('current_deals')
-    .select('*')
-    .order('advertised_discount_percent', { ascending: false })
-    .limit(100);
+  const [woolworthsResult, paknsaveResult] = await Promise.all([
+    supabase
+      .from('current_deals')
+      .select('*')
+      .eq('retailer_slug', 'woolworths')
+      .gte('advertised_discount_percent', WOOLWORTHS_MIN_ADVERTISED_DISCOUNT)
+      .order('advertised_discount_percent', { ascending: false })
+      .limit(500),
+    supabase
+      .from('current_deals')
+      .select('*')
+      .eq('retailer_slug', 'paknsave')
+      .order('advertised_discount_percent', { ascending: false })
+      .limit(1_000),
+  ]);
 
-  if (error) throw new Error(`Read current deals: ${error.message}`);
-  const rows = (data ?? []) as CurrentDealRow[];
+  if (woolworthsResult.error) {
+    throw new Error(`Read Woolworths deals: ${woolworthsResult.error.message}`);
+  }
+  if (paknsaveResult.error) {
+    throw new Error(`Read PAK'nSAVE deals: ${paknsaveResult.error.message}`);
+  }
+
+  const rowsByOffer = new Map<number, CurrentDealRow>();
+  for (const row of [
+    ...(woolworthsResult.data ?? []),
+    ...(paknsaveResult.data ?? []),
+  ] as CurrentDealRow[]) {
+    rowsByOffer.set(row.offer_id, row);
+  }
+  const rows = [...rowsByOffer.values()];
   if (rows.length === 0) {
     return { deals: [] as Deal[], updatedAt: null as string | null };
   }
 
   const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1_000);
   const productIds = [...new Set(rows.map((row) => row.retailer_product_id))];
-  const { data: historyData, error: historyError } = await supabase
-    .from('offer_history')
-    .select('retailer_product_id,store_id,effective_price_cents,observed_at')
-    .in('retailer_product_id', productIds)
-    .gte('observed_at', cutoff.toISOString())
-    .order('observed_at', { ascending: true });
-
-  if (historyError) {
-    throw new Error(`Read offer history: ${historyError.message}`);
+  const productIdBatches: number[][] = [];
+  for (let index = 0; index < productIds.length; index += 200) {
+    productIdBatches.push(productIds.slice(index, index + 200));
+  }
+  const historyResults = await Promise.all(
+    productIdBatches.map((batch) =>
+      supabase
+        .from('offer_history')
+        .select(
+          'retailer_product_id,store_id,effective_price_cents,observed_at',
+        )
+        .in('retailer_product_id', batch)
+        .gte('observed_at', cutoff.toISOString())
+        .order('observed_at', { ascending: true }),
+    ),
+  );
+  const historyData: HistoryRow[] = [];
+  for (const result of historyResults) {
+    if (result.error) {
+      throw new Error(`Read offer history: ${result.error.message}`);
+    }
+    historyData.push(...((result.data ?? []) as HistoryRow[]));
   }
 
   const historyByOffer = new Map<string, HistoryRow[]>();
-  for (const point of (historyData ?? []) as HistoryRow[]) {
+  for (const point of historyData) {
     const key = `${point.retailer_product_id}:${point.store_id}`;
     const values = historyByOffer.get(key) ?? [];
     values.push(point);
@@ -102,16 +149,11 @@ export async function getCurrentDeals() {
         ? historicalPrices.reduce((sum, price) => sum + price, 0) /
           historicalPrices.length
         : regularPrice;
-    const advertisedDiscount = Math.max(
-      0,
-      Number(row.advertised_discount_percent ?? 0),
-    );
-
-    return {
+    const deal: Deal = {
       id: `${row.retailer_slug}-${row.source_product_id}`,
       name: row.source_name,
       size: row.size ?? 'See product details',
-      brand: row.brand ?? 'Woolworths',
+      brand: row.brand ?? row.retailer_name,
       category: row.category ?? 'Other',
       retailer: row.retailer_name,
       store: row.store_name,
@@ -119,23 +161,49 @@ export async function getCurrentDeals() {
       regularPrice,
       average90d,
       low90d: Math.min(...historicalPrices, row.effective_price_cents / 100),
-      score: Math.min(
-        99,
-        Math.round(
-          55 + advertisedDiscount * 1.2 + (history.length >= 3 ? 5 : 0),
-        ),
-      ),
+      score: 0,
       promotion:
         row.promotion_text ??
         (row.promotion_type === 'MEMBER_PRICE'
           ? 'Member price'
-          : 'Woolworths special'),
+          : `${row.retailer_name} special`),
       memberOnly: row.promotion_type === 'MEMBER_PRICE',
       imageUrl: row.image_url ?? undefined,
-      color: '#83a977',
+      color: row.retailer_slug === 'paknsave' ? '#f4b942' : '#83a977',
       history,
     };
+    const advertisedDiscount = advertisedDiscountPercent(deal);
+    const historicalEvidence = historicalDiscountEvidence(deal);
+    const isWoolworths = row.retailer_slug === 'woolworths';
+    const isPaknsave = row.retailer_slug === 'paknsave';
+    const evidencePromotion = isWoolworths
+      ? promotionLabelForDiscount(advertisedDiscount)
+      : isPaknsave &&
+          advertisedDiscount < PAKNSAVE_MIN_ADVERTISED_DISCOUNT &&
+          historicalEvidence &&
+          historicalEvidence.discountPercent >=
+            PAKNSAVE_MIN_HISTORICAL_DISCOUNT
+        ? `${historicalEvidence.discountPercent}% below 90-day median`
+        : null;
+    if (evidencePromotion) deal.promotion = evidencePromotion;
+    deal.score = Math.min(
+      99,
+      Math.round(
+        55 + dealEvidencePercent(deal) * 1.2 + (history.length >= 4 ? 5 : 0),
+      ),
+    );
+    return deal;
   });
+
+  const strongDeals = deals
+    .filter(isStrongDeal)
+    .sort(
+      (left, right) =>
+        dealEvidencePercent(right) - dealEvidencePercent(left) ||
+        right.score - left.score ||
+        left.name.localeCompare(right.name),
+    )
+    .slice(0, 100);
 
   const updatedAt = rows.reduce(
     (latest, row) =>
@@ -143,5 +211,5 @@ export async function getCurrentDeals() {
     null as string | null,
   );
 
-  return { deals, updatedAt };
+  return { deals: strongDeals, updatedAt };
 }

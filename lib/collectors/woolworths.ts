@@ -1,4 +1,5 @@
 import type { CollectorStore, RawOffer, RetailerCollector } from './types';
+import { promotionLabelForDiscount } from '../deal-quality';
 
 const DEFAULT_ORIGIN = 'https://www.woolworths.co.nz';
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -11,6 +12,7 @@ type WoolworthsPrice = {
   originalPrice?: number | null;
   salePrice?: number | null;
   savePrice?: number | null;
+  savePercentage?: number | null;
   isClubPrice?: boolean;
   isSpecial?: boolean;
   promotionEndDate?: string | null;
@@ -87,6 +89,16 @@ function parseDate(value: string | null | undefined) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function discountPercent(
+  originalPriceCents: number | null,
+  currentPriceCents: number,
+) {
+  if (!originalPriceCents || originalPriceCents <= currentPriceCents) return 0;
+  return Math.round(
+    (100 * (originalPriceCents - currentPriceCents)) / originalPriceCents,
+  );
+}
+
 function storeFromFulfilment(
   fulfilment: WoolworthsFulfilment | undefined,
   city: string,
@@ -124,9 +136,16 @@ export function toWoolworthsOffer(
     product.price?.isSpecial || product.productTag?.tagType === 'IsSpecial',
   );
   const savePrice = product.price?.savePrice;
+  const computedDiscount = discountPercent(
+    originalPriceCents,
+    currentPriceCents,
+  );
+  const strongPromotionLabel = promotionLabelForDiscount(computedDiscount);
 
   let promotionText: string | null = null;
-  if (isMemberPrice) {
+  if (strongPromotionLabel) {
+    promotionText = strongPromotionLabel;
+  } else if (isMemberPrice) {
     promotionText = 'Everyday Rewards member price';
   } else if (Number.isFinite(savePrice) && Number(savePrice) > 0) {
     promotionText = `Save $${Number(savePrice).toFixed(2)}`;

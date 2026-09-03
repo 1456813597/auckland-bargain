@@ -6,6 +6,7 @@ import nextEnv from '@next/env';
 
 import { PaknsaveCollector } from '../lib/collectors/paknsave';
 import { WoolworthsCollector } from '../lib/collectors/woolworths';
+import { dealEvidencePercent, isStrongDeal } from '../lib/deal-quality';
 import type { Deal } from '../lib/deals';
 import {
   LOCAL_DEALS_SCHEMA_VERSION,
@@ -41,9 +42,12 @@ const maximumDealsPerRetailer = positiveInteger(
 
 function keepTopDeals(deals: Deal[]) {
   return deals
+    .filter(isStrongDeal)
     .sort(
       (left, right) =>
-        right.score - left.score || left.name.localeCompare(right.name),
+        dealEvidencePercent(right) - dealEvidencePercent(left) ||
+        right.score - left.score ||
+        left.name.localeCompare(right.name),
     )
     .slice(0, maximumDealsPerRetailer);
 }
