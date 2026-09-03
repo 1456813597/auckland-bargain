@@ -4,6 +4,7 @@ import path from 'node:path';
 import process from 'node:process';
 
 const npmCli = process.env.npm_execpath;
+const legacyBaselineMigration = '20260830110000';
 
 function fail(message) {
   console.error(`[vercel-build] ${message}`);
@@ -83,6 +84,24 @@ runNpm('Run lint', ['run', 'lint']);
 if (process.env.VERCEL_ENV === 'production') {
   requireEnvironmentVariables(['POSTGRES_URL_NON_POOLING']);
   const productionDatabaseUrl = process.env.POSTGRES_URL_NON_POOLING;
+
+  if (process.env.SUPABASE_BASELINE_MIGRATION) {
+    if (process.env.SUPABASE_BASELINE_MIGRATION !== legacyBaselineMigration) {
+      fail(
+        `Unsupported Supabase baseline migration: ${process.env.SUPABASE_BASELINE_MIGRATION}`,
+      );
+    }
+
+    runSupabase(`Mark legacy migration ${legacyBaselineMigration} as applied`, [
+      'migration',
+      'repair',
+      '--status',
+      'applied',
+      legacyBaselineMigration,
+      '--db-url',
+      productionDatabaseUrl,
+    ]);
+  }
 
   runSupabase('Show migration history', [
     'migration',
