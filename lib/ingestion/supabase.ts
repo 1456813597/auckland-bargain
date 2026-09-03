@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { getSupabaseAdmin } from '@/db/supabase';
 import type { CollectorStore, RawOffer } from '@/lib/collectors/types';
+import { mirrorOfferImages } from '@/lib/storage/product-images';
 
 const WRITE_BATCH_SIZE = 250;
 
@@ -119,11 +120,16 @@ async function upsertStore(retailerId: number, store: CollectorStore) {
   return Number(data.id);
 }
 
-async function upsertProducts(retailerId: number, offers: RawOffer[]) {
+async function upsertProducts(
+  retailerId: number,
+  retailerSlug: string,
+  offers: RawOffer[],
+) {
   const ids = new Map<string, number>();
   const supabase = getSupabaseAdmin();
+  const offersWithStoredImages = await mirrorOfferImages(retailerSlug, offers);
 
-  for (const batch of chunks(offers)) {
+  for (const batch of chunks(offersWithStoredImages)) {
     const { data, error } = await supabase
       .from('retailer_products')
       .upsert(
@@ -169,7 +175,11 @@ export async function ingestOffers(input: {
 
   const retailerId = await upsertRetailer(input.retailer);
   const storeId = await upsertStore(retailerId, input.store);
-  const productIds = await upsertProducts(retailerId, input.offers);
+  const productIds = await upsertProducts(
+    retailerId,
+    input.retailer.slug,
+    input.offers,
+  );
   const supabase = getSupabaseAdmin();
 
   for (const batch of chunks(input.offers)) {

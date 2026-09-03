@@ -1,5 +1,6 @@
 import { isSupabaseConfigured } from '@/db/supabase';
 import { WoolworthsCollector } from '@/lib/collectors/woolworths';
+import { isAuthorizedCronRequest } from '@/lib/http/cron-auth';
 import {
   CollectionAlreadyRunningError,
   createCollectionRun,
@@ -17,6 +18,10 @@ function positiveInteger(value: string | undefined, fallback: number) {
 }
 
 export async function GET(request: Request) {
+  if (!isAuthorizedCronRequest(request)) {
+    return Response.json({ error: 'Unauthorized.' }, { status: 401 });
+  }
+
   if (!isSupabaseConfigured()) {
     return Response.json(
       { error: 'Supabase is not configured on the server.' },

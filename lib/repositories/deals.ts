@@ -1,5 +1,5 @@
-import { getSupabaseAdmin } from "@/db/supabase";
-import type { Deal, PricePoint } from "@/lib/deals";
+import { getSupabaseAdmin } from '@/db/supabase';
+import type { Deal, PricePoint } from '@/lib/deals';
 
 type CurrentDealRow = {
   retailer_product_id: number;
@@ -10,6 +10,7 @@ type CurrentDealRow = {
   category: string | null;
   size: string | null;
   image_url: string | null;
+  retailer_slug: string;
   retailer_name: string;
   store_name: string;
   regular_price_cents: number | null;
@@ -27,10 +28,10 @@ type HistoryRow = {
   observed_at: string;
 };
 
-const dateLabel = new Intl.DateTimeFormat("en-NZ", {
-  day: "2-digit",
-  month: "short",
-  timeZone: "Pacific/Auckland",
+const dateLabel = new Intl.DateTimeFormat('en-NZ', {
+  day: '2-digit',
+  month: 'short',
+  timeZone: 'Pacific/Auckland',
 });
 
 function historyPoints(
@@ -55,9 +56,9 @@ function historyPoints(
 export async function getCurrentDeals() {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
-    .from("current_deals")
-    .select("*")
-    .order("advertised_discount_percent", { ascending: false })
+    .from('current_deals')
+    .select('*')
+    .order('advertised_discount_percent', { ascending: false })
     .limit(100);
 
   if (error) throw new Error(`Read current deals: ${error.message}`);
@@ -69,13 +70,11 @@ export async function getCurrentDeals() {
   const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1_000);
   const productIds = [...new Set(rows.map((row) => row.retailer_product_id))];
   const { data: historyData, error: historyError } = await supabase
-    .from("offer_history")
-    .select(
-      "retailer_product_id,store_id,effective_price_cents,observed_at",
-    )
-    .in("retailer_product_id", productIds)
-    .gte("observed_at", cutoff.toISOString())
-    .order("observed_at", { ascending: true });
+    .from('offer_history')
+    .select('retailer_product_id,store_id,effective_price_cents,observed_at')
+    .in('retailer_product_id', productIds)
+    .gte('observed_at', cutoff.toISOString())
+    .order('observed_at', { ascending: true });
 
   if (historyError) {
     throw new Error(`Read offer history: ${historyError.message}`);
@@ -91,9 +90,7 @@ export async function getCurrentDeals() {
 
   const deals = rows.map((row): Deal => {
     const history = historyPoints(
-      historyByOffer.get(
-        `${row.retailer_product_id}:${row.store_id}`,
-      ) ?? [],
+      historyByOffer.get(`${row.retailer_product_id}:${row.store_id}`) ?? [],
       row.effective_price_cents,
       row.collected_at,
     );
@@ -111,11 +108,11 @@ export async function getCurrentDeals() {
     );
 
     return {
-      id: `woolworths-${row.source_product_id}`,
+      id: `${row.retailer_slug}-${row.source_product_id}`,
       name: row.source_name,
-      size: row.size ?? "See product details",
-      brand: row.brand ?? "Woolworths",
-      category: row.category ?? "Other",
+      size: row.size ?? 'See product details',
+      brand: row.brand ?? 'Woolworths',
+      category: row.category ?? 'Other',
       retailer: row.retailer_name,
       store: row.store_name,
       price: row.effective_price_cents / 100,
@@ -124,16 +121,18 @@ export async function getCurrentDeals() {
       low90d: Math.min(...historicalPrices, row.effective_price_cents / 100),
       score: Math.min(
         99,
-        Math.round(55 + advertisedDiscount * 1.2 + (history.length >= 3 ? 5 : 0)),
+        Math.round(
+          55 + advertisedDiscount * 1.2 + (history.length >= 3 ? 5 : 0),
+        ),
       ),
       promotion:
         row.promotion_text ??
-        (row.promotion_type === "MEMBER_PRICE"
-          ? "Member price"
-          : "Woolworths special"),
-      memberOnly: row.promotion_type === "MEMBER_PRICE",
+        (row.promotion_type === 'MEMBER_PRICE'
+          ? 'Member price'
+          : 'Woolworths special'),
+      memberOnly: row.promotion_type === 'MEMBER_PRICE',
       imageUrl: row.image_url ?? undefined,
-      color: "#83a977",
+      color: '#83a977',
       history,
     };
   });

@@ -4,9 +4,19 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: "https",
-        hostname: "assets.woolworths.com.au",
-        pathname: "/images/**",
+        protocol: 'https',
+        hostname: 'assets.woolworths.com.au',
+        pathname: '/images/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.public.blob.vercel-storage.com',
+        pathname: '/product-images/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'upload.wikimedia.org',
+        pathname: '/wikipedia/**',
       },
     ],
   },

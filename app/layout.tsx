@@ -7,7 +7,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
-  title: "Auckland Bargain — Real grocery deals",
+  title: "Auckland Bargain - Real grocery deals",
   description: "Find Auckland grocery prices that are genuinely below their recent average.",
   openGraph: {
     title: "Auckland Bargain",
