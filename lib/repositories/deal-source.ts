@@ -1,5 +1,5 @@
 import { isSupabaseConfigured } from '@/db/supabase';
-import { dealEvidencePercent, isStrongDeal } from '@/lib/deal-quality';
+import { selectStrongDeals } from '@/lib/deal-quality';
 import { demoDeals, type Deal } from '@/lib/deals';
 import { getBundledLocalDeals } from '@/lib/local-deals';
 import { getCurrentDeals } from '@/lib/repositories/deals';
@@ -22,15 +22,7 @@ export async function getDealsWithFallback(): Promise<DealsResult> {
     const local = getBundledLocalDeals();
     if (local.deals.length > 0) {
       return {
-        deals: local.deals
-          .filter(isStrongDeal)
-          .sort(
-            (left, right) =>
-              dealEvidencePercent(right) - dealEvidencePercent(left) ||
-              right.score - left.score ||
-              left.name.localeCompare(right.name),
-          )
-          .slice(0, 100),
+        deals: selectStrongDeals(local.deals),
         updatedAt: local.generatedAt,
         source: 'local-json',
       };

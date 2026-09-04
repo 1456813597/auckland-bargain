@@ -4,6 +4,7 @@ export const WOOLWORTHS_MIN_ADVERTISED_DISCOUNT = 40;
 export const PAKNSAVE_MIN_ADVERTISED_DISCOUNT = 30;
 export const PAKNSAVE_MIN_HISTORICAL_DISCOUNT = 25;
 export const MIN_PRIOR_PRICE_OBSERVATIONS = 3;
+export const MIN_RESULTS_PER_RETAILER = 10;
 
 function percentBelow(referencePrice: number, currentPrice: number) {
   if (!Number.isFinite(referencePrice) || referencePrice <= 0) return 0;
@@ -69,6 +70,53 @@ export function isStrongDeal(deal: Deal) {
   }
 
   return dealEvidencePercent(deal) >= PAKNSAVE_MIN_HISTORICAL_DISCOUNT;
+}
+
+export function selectStrongDeals(
+  deals: Deal[],
+  limit = 100,
+  minimumPerRetailer = MIN_RESULTS_PER_RETAILER,
+) {
+  if (limit <= 0) return [];
+
+  const ranked = deals
+    .filter(isStrongDeal)
+    .sort(
+      (left, right) =>
+        dealEvidencePercent(right) - dealEvidencePercent(left) ||
+        right.score - left.score ||
+        left.name.localeCompare(right.name),
+    );
+  const retailerKeys = [
+    ...new Set(ranked.map((deal) => deal.retailer.toLocaleLowerCase('en-NZ'))),
+  ];
+  const reservedPerRetailer = Math.min(
+    minimumPerRetailer,
+    Math.floor(limit / Math.max(retailerKeys.length, 1)),
+  );
+  const selected = new Set<Deal>();
+
+  for (const retailer of retailerKeys) {
+    for (const deal of ranked) {
+      if (deal.retailer.toLocaleLowerCase('en-NZ') !== retailer) continue;
+      selected.add(deal);
+      if (
+        [...selected].filter(
+          (candidate) =>
+            candidate.retailer.toLocaleLowerCase('en-NZ') === retailer,
+        ).length >= reservedPerRetailer
+      ) {
+        break;
+      }
+    }
+  }
+
+  for (const deal of ranked) {
+    if (selected.size >= limit) break;
+    selected.add(deal);
+  }
+
+  return ranked.filter((deal) => selected.has(deal)).slice(0, limit);
 }
 
 export function promotionLabelForDiscount(discountPercent: number) {

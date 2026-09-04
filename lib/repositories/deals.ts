@@ -3,10 +3,10 @@ import {
   advertisedDiscountPercent,
   dealEvidencePercent,
   historicalDiscountEvidence,
-  isStrongDeal,
   PAKNSAVE_MIN_ADVERTISED_DISCOUNT,
   PAKNSAVE_MIN_HISTORICAL_DISCOUNT,
   promotionLabelForDiscount,
+  selectStrongDeals,
   WOOLWORTHS_MIN_ADVERTISED_DISCOUNT,
 } from '@/lib/deal-quality';
 import type { Deal, PricePoint } from '@/lib/deals';
@@ -181,8 +181,7 @@ export async function getCurrentDeals() {
       : isPaknsave &&
           advertisedDiscount < PAKNSAVE_MIN_ADVERTISED_DISCOUNT &&
           historicalEvidence &&
-          historicalEvidence.discountPercent >=
-            PAKNSAVE_MIN_HISTORICAL_DISCOUNT
+          historicalEvidence.discountPercent >= PAKNSAVE_MIN_HISTORICAL_DISCOUNT
         ? `${historicalEvidence.discountPercent}% below 90-day median`
         : null;
     if (evidencePromotion) deal.promotion = evidencePromotion;
@@ -195,15 +194,7 @@ export async function getCurrentDeals() {
     return deal;
   });
 
-  const strongDeals = deals
-    .filter(isStrongDeal)
-    .sort(
-      (left, right) =>
-        dealEvidencePercent(right) - dealEvidencePercent(left) ||
-        right.score - left.score ||
-        left.name.localeCompare(right.name),
-    )
-    .slice(0, 100);
+  const strongDeals = selectStrongDeals(deals);
 
   const updatedAt = rows.reduce(
     (latest, row) =>

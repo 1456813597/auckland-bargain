@@ -6,6 +6,7 @@ import {
   historicalDiscountEvidence,
   isStrongDeal,
   promotionLabelForDiscount,
+  selectStrongDeals,
 } from '../lib/deal-quality';
 import type { Deal } from '../lib/deals';
 
@@ -83,5 +84,44 @@ describe('strong-deal qualification', () => {
     assert.equal(promotionLabelForDiscount(52), 'Half price');
     assert.equal(promotionLabelForDiscount(53), 'Better than half price');
     assert.equal(promotionLabelForDiscount(47), null);
+  });
+
+  it("reserves space for qualifying PAK'nSAVE deals without admitting weak offers", () => {
+    const woolworthsDeals = Array.from({ length: 105 }, (_, index) =>
+      deal({ id: `woolworths-${index}`, name: `Woolworths ${index}` }),
+    );
+    const paknsaveDeals = Array.from({ length: 12 }, (_, index) =>
+      deal({
+        id: `paknsave-${index}`,
+        name: `PAK'nSAVE ${index}`,
+        retailer: "PAK'nSAVE",
+        price: 7,
+        regularPrice: 10,
+        low90d: 7,
+      }),
+    );
+    const weakPaknsaveDeal = deal({
+      id: 'paknsave-weak',
+      retailer: "PAK'nSAVE",
+      price: 8,
+      regularPrice: 10,
+      low90d: 8,
+    });
+
+    const selected = selectStrongDeals([
+      ...woolworthsDeals,
+      ...paknsaveDeals,
+      weakPaknsaveDeal,
+    ]);
+
+    assert.equal(selected.length, 100);
+    assert.equal(
+      selected.filter((candidate) => candidate.retailer === "PAK'nSAVE").length,
+      10,
+    );
+    assert.equal(
+      selected.some((candidate) => candidate.id === 'paknsave-weak'),
+      false,
+    );
   });
 });
