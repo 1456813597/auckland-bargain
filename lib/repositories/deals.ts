@@ -10,6 +10,7 @@ import {
   WOOLWORTHS_MIN_ADVERTISED_DISCOUNT,
 } from '@/lib/deal-quality';
 import type { Deal, PricePoint } from '@/lib/deals';
+import { paknsaveProductImageUrl } from '@/lib/product-images';
 import { shopperFacingPriceCents } from '@/lib/retailer-pricing';
 
 type CurrentDealRow = {
@@ -185,7 +186,12 @@ export async function getCurrentDeals() {
           ? 'Member price'
           : `${row.retailer_name} special`),
       memberOnly: row.promotion_type === 'MEMBER_PRICE',
-      imageUrl: row.image_url ?? undefined,
+      imageUrl:
+        (row.retailer_slug === 'paknsave'
+          ? paknsaveProductImageUrl(row.source_product_id)
+          : null) ??
+        row.image_url ??
+        undefined,
       color: row.retailer_slug === 'paknsave' ? '#f4b942' : '#83a977',
       history,
     };

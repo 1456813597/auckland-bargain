@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+import { paknsaveProductImageUrl } from '@/lib/product-images';
+
 import type { CollectorStore, RawOffer, RetailerCollector } from './types';
 
 const DEFAULT_WEB_ORIGIN = 'https://www.paknsave.co.nz';
@@ -112,13 +114,6 @@ function largestImage(images: PaknsaveProduct['productImageUrls']) {
   );
 }
 
-function productImage(productId: string) {
-  const numericId = productId.split('-')[0];
-  return /^\d+$/.test(numericId)
-    ? `https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/${numericId}.png`
-    : null;
-}
-
 function bestPromotion(product: PaknsaveProduct) {
   return (
     product.promotions?.find((promotion) => promotion.bestPromotion) ??
@@ -217,7 +212,8 @@ export function toPaknsaveOffer(
     size: clean(product.units) ?? clean(product.displayName),
     gtin: null,
     imageUrl:
-      largestImage(product.productImageUrls) ?? productImage(sourceProductId),
+      largestImage(product.productImageUrls) ??
+      paknsaveProductImageUrl(sourceProductId),
     sourceUrl:
       webOrigin +
       '/shop/product/' +

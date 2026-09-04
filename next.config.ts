@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'a.fsimg.co.nz',
+        pathname: '/prod/product/retail/fan/image/**',
+      },
+      {
+        protocol: 'https',
         hostname: '*.public.blob.vercel-storage.com',
         pathname: '/product-images/**',
       },

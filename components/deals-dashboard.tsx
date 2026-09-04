@@ -114,6 +114,35 @@ function retailerLogo(retailer: string) {
   return retailerLogos.woolworths;
 }
 
+function DealProductImage({ deal }: { deal: Deal }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const imageFailed = deal.imageUrl === failedUrl;
+
+  return (
+    <>
+      <div
+        className="absolute inset-0 -z-20 grid place-items-center bg-[radial-gradient(circle_at_70%_18%,rgb(255_255_255/.38),transparent_34%),linear-gradient(145deg,var(--fallback-color),#263b31)]"
+        style={{ '--fallback-color': deal.color } as React.CSSProperties}
+        aria-hidden="true"
+      >
+        <span className="font-heading text-7xl font-black text-white/20">
+          {deal.brand.slice(0, 2).toUpperCase()}
+        </span>
+      </div>
+      {deal.imageUrl && !imageFailed && (
+        <Image
+          src={deal.imageUrl}
+          alt={`${deal.name} product photo`}
+          fill
+          sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, (max-width: 1279px) 33vw, 25vw"
+          onError={() => setFailedUrl(deal.imageUrl ?? null)}
+          className="-z-20 object-cover object-center transition-transform duration-500 group-hover:scale-[1.035]"
+        />
+      )}
+    </>
+  );
+}
+
 function DealCard({
   deal,
   onOpen,
@@ -124,32 +153,10 @@ function DealCard({
   const saving = discountPercent(deal);
   const logo = retailerLogo(deal.retailer);
   const multiBuy = multiBuyOffer(deal.promotion);
-  const imageIsStoredInBlob = deal.imageUrl?.includes(
-    '.public.blob.vercel-storage.com/',
-  );
 
   return (
     <Card className="group relative isolate min-h-84 gap-0 overflow-hidden rounded-[1.35rem] bg-[#263b31] py-0 text-white shadow-[0_14px_36px_oklch(0.2_0.04_145/0.12)] ring-white/12 transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_20px_46px_oklch(0.2_0.04_145/0.22)]">
-      {deal.imageUrl ? (
-        <Image
-          src={deal.imageUrl}
-          alt={`${deal.name} product photo`}
-          fill
-          sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, (max-width: 1279px) 33vw, 25vw"
-          unoptimized={!imageIsStoredInBlob}
-          className="-z-20 object-cover object-center transition-transform duration-500 group-hover:scale-[1.035]"
-        />
-      ) : (
-        <div
-          className="absolute inset-0 -z-20 grid place-items-center bg-[radial-gradient(circle_at_70%_18%,rgb(255_255_255/.38),transparent_34%),linear-gradient(145deg,var(--fallback-color),#263b31)]"
-          style={{ '--fallback-color': deal.color } as React.CSSProperties}
-          aria-hidden="true"
-        >
-          <span className="font-heading text-7xl font-black text-white/20">
-            {deal.brand.slice(0, 2).toUpperCase()}
-          </span>
-        </div>
-      )}
+      <DealProductImage deal={deal} />
       <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgb(18_30_24/.12)_0%,rgb(18_30_24/.42)_40%,rgb(18_30_24/.96)_100%),linear-gradient(90deg,rgb(18_30_24/.46),transparent_70%)]" />
       <div className="pointer-events-none absolute inset-px rounded-[calc(1.35rem-1px)] ring-1 ring-inset ring-white/15" />
 
