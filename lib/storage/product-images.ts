@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
 
-import { BlobNotFoundError, head, put } from '@vercel/blob';
+import { BlobNotFoundError, head, list, put } from '@vercel/blob';
 
 import type { RawOffer } from '@/lib/collectors/types';
 
-const IMAGE_UPLOAD_CONCURRENCY = 6;
+const IMAGE_UPLOAD_CONCURRENCY = 12;
+const MAX_IMAGE_UPLOADS_PER_RUN = 48;
 const IMMUTABLE_CACHE_SECONDS = 31_536_000;
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 
@@ -63,11 +64,31 @@ async function existingBlobUrl(pathname: string) {
   }
 }
 
-async function mirrorImage(retailerSlug: string, offer: RawOffer) {
+async function listExistingBlobUrls(retailerSlug: string) {
+  const urls = new Map<string, string>();
+  const prefix = `product-images/${safePathSegment(retailerSlug)}/`;
+  let cursor: string | undefined;
+
+  do {
+    const page = await list({ prefix, limit: 1_000, cursor });
+    for (const blob of page.blobs) urls.set(blob.pathname, blob.url);
+    if (page.hasMore && !page.cursor) {
+      throw new Error('Vercel Blob returned another page without a cursor.');
+    }
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+
+  return urls;
+}
+
+async function mirrorImage(
+  retailerSlug: string,
+  offer: RawOffer,
+  existingUrl?: string,
+) {
   if (!offer.imageUrl) return offer;
 
   const pathname = imagePath(retailerSlug, offer);
-  const existingUrl = await existingBlobUrl(pathname);
   if (existingUrl) return { ...offer, imageUrl: existingUrl };
 
   const response = await fetch(offer.imageUrl, {
@@ -77,7 +98,7 @@ async function mirrorImage(retailerSlug: string, offer: RawOffer) {
     },
     redirect: 'follow',
   });
-  if (!response.ok || !response.body) {
+  if (!response.ok) {
     throw new Error(
       `Product image request failed with HTTP ${response.status}.`,
     );
@@ -94,9 +115,13 @@ async function mirrorImage(retailerSlug: string, offer: RawOffer) {
   if (contentLength > MAX_IMAGE_BYTES) {
     throw new Error(`Product image is larger than ${MAX_IMAGE_BYTES} bytes.`);
   }
+  const imageBytes = await response.arrayBuffer();
+  if (imageBytes.byteLength > MAX_IMAGE_BYTES) {
+    throw new Error(`Product image is larger than ${MAX_IMAGE_BYTES} bytes.`);
+  }
 
   try {
-    const blob = await put(pathname, response.body, {
+    const blob = await put(pathname, imageBytes, {
       access: 'public',
       addRandomSuffix: false,
       cacheControlMaxAge: IMMUTABLE_CACHE_SECONDS,
@@ -117,7 +142,19 @@ export async function mirrorOfferImages(
 ) {
   if (!blobIsConfigured()) return offers;
 
+  let existingUrls: Map<string, string>;
+  try {
+    existingUrls = await listExistingBlobUrls(retailerSlug);
+  } catch (error) {
+    console.warn(
+      `Could not list existing ${retailerSlug} product images; using retailer URLs for this run.`,
+      error,
+    );
+    return offers;
+  }
+
   const mirrored = [...offers];
+  let uploadsStarted = 0;
   for (
     let index = 0;
     index < offers.length;
@@ -126,8 +163,16 @@ export async function mirrorOfferImages(
     const batch = offers.slice(index, index + IMAGE_UPLOAD_CONCURRENCY);
     const results = await Promise.all(
       batch.map(async (offer) => {
+        if (!offer.imageUrl) return offer;
+        const pathname = imagePath(retailerSlug, offer);
+        const existingUrl = existingUrls.get(pathname);
+        if (!existingUrl && uploadsStarted >= MAX_IMAGE_UPLOADS_PER_RUN) {
+          return offer;
+        }
+        if (!existingUrl) uploadsStarted += 1;
+
         try {
-          return await mirrorImage(retailerSlug, offer);
+          return await mirrorImage(retailerSlug, offer, existingUrl);
         } catch (error) {
           console.warn(
             `Could not mirror product image for ${offer.sourceProductId}; using the retailer URL.`,

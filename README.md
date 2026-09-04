@@ -95,8 +95,8 @@ you want a shared fallback dataset.
 Create a Vercel project from this repository and add the required variables to
 the Production environment. Preview deployments should use a separate Supabase
 project or no database credentials. Vercel's Git integration automatically
-builds commits pushed to `main`; GitHub Actions is not part of the deployment
-pipeline and the GitHub repository requires no deployment secrets.
+builds commits pushed to `main`; the GitHub repository requires no deployment
+secrets.
 
 `vercel.json` runs `npm run build:vercel` as the Build Command. Every Vercel
 build runs the tests, type checking, lint, the HTTP migration-route guard and
@@ -181,7 +181,10 @@ The first configured store is PAK'nSAVE Royal Oak. Set `PAKNSAVE_STORE_ID` to
 an exact store UUID when changing stores. `PAKNSAVE_STORE_QUERY` is a readable
 fallback used to resolve a store from the live PAK'nSAVE store list. The
 collector records the upstream physical address and refuses to finalize a
-snapshot when pagination exceeds `PAKNSAVE_MAX_PAGES`.
+snapshot when pagination exceeds `PAKNSAVE_MAX_PAGES`. Because PAK'nSAVE caps
+broad searches at 1,000 results, the collector automatically partitions a
+capped response by the store's top-level categories, deduplicates the products,
+and verifies every partition before replacing the current snapshot.
 
 ## Selecting another Woolworths store
 

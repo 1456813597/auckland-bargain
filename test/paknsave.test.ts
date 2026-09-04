@@ -37,7 +37,7 @@ describe('toPaknsaveOffer', () => {
     assert.equal(offer.promoPriceCents, 659);
     assert.equal(offer.promotionText, "PAK'nSAVE Extra Low");
     assert.equal(offer.imageUrl, 'https://example.com/500.png');
-    assert.match(offer.sourceUrl, /5009651_ea_000$/);
+    assert.match(offer.sourceUrl, /5009651_ea_000pns$/);
   });
 
   it('normalizes a multibuy total to its per-item promo price', () => {
@@ -76,6 +76,37 @@ describe('toPaknsaveOffer', () => {
     assert.equal(offer.memberPriceCents, 400);
     assert.equal(offer.promotionType, 'MEMBER_PRICE');
   });
+
+  it('maps the current search API promotion and image fields', () => {
+    const offer = toPaknsaveOffer(
+      {
+        productId: '5039956-EA-000',
+        name: 'Broccoli',
+        displayName: 'Fresh Broccoli each',
+        singlePrice: { price: 179 },
+        promotions: [
+          {
+            bestPromotion: true,
+            multiProducts: true,
+            threshold: 2,
+            rewardValue: 300,
+          },
+        ],
+        categoryTrees: [{ level0: 'Fruit & Vegetables', level1: 'Fresh' }],
+      },
+      collectedAt,
+    );
+
+    assert.ok(offer);
+    assert.equal(offer.regularPriceCents, 179);
+    assert.equal(offer.promoPriceCents, 150);
+    assert.equal(offer.promotionText, '2 for $3.00');
+    assert.equal(offer.category, 'Fresh');
+    assert.equal(
+      offer.imageUrl,
+      'https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5039956.png',
+    );
+  });
 });
 
 describe('PaknsaveCollector', () => {
@@ -104,6 +135,7 @@ describe('PaknsaveCollector', () => {
               address: '691 Manukau Road, Royal Oak, Auckland, 1023',
               onlineActive: true,
               physicalActive: true,
+              region: 'NI',
               physicalAddress: { cityName: 'Auckland' },
             },
             { id: 'other', name: 'Other', banner: 'NW' },
@@ -111,16 +143,30 @@ describe('PaknsaveCollector', () => {
         });
       }
 
-      const page = Number(url.searchParams.get('page'));
+      assert.equal(url.pathname, '/v1/edge/search/paginated/products');
+      const body = JSON.parse(String(init?.body)) as {
+        algoliaQuery: { filters: string; facetFilters?: string[][] };
+        hitsPerPage: number;
+        page: number;
+        sortOrder: string;
+      };
+      assert.equal(
+        body.algoliaQuery.filters,
+        'stores:royal-oak-id AND onPromotion:royal-oak-id',
+      );
+      assert.equal(body.hitsPerPage, 50);
+      assert.equal(body.sortOrder, 'NI_POPULARITY_ASC');
+      assert.equal(body.algoliaQuery.facetFilters, undefined);
+      const page = body.page;
       pages.push(page);
       return Response.json({
         totalHits: 2,
-        numberOfPages: 2,
+        totalPages: 2,
         products: [
           {
             productId: String(page) + '-EA-000',
             name: 'Product ' + String(page),
-            price: 200 + page,
+            singlePrice: { price: 200 + page },
           },
         ],
       });
@@ -152,7 +198,8 @@ describe('PaknsaveCollector', () => {
         return Response.json({ access_token: 'token' });
       }
       return Response.json({
-        numberOfPages: 2,
+        totalHits: 2,
+        totalPages: 2,
         products: [{ productId: '1-EA-000', name: 'Product', price: 100 }],
       });
     };
@@ -170,6 +217,117 @@ describe('PaknsaveCollector', () => {
         city: 'Auckland',
       }),
       /more than the configured 1 pages/,
+    );
+  });
+
+  it('partitions capped results by top-level category and deduplicates them', async () => {
+    const categories: Array<string | undefined> = [];
+    const transport: typeof fetch = async (input, init) => {
+      const url = requestUrl(input);
+      if (url.pathname === '/api/user/get-current-user') {
+        return Response.json({ access_token: 'token' });
+      }
+
+      const body = JSON.parse(String(init?.body)) as {
+        algoliaQuery: { facetFilters?: string[][] };
+      };
+      const categoryFilter = body.algoliaQuery.facetFilters?.[0]?.[0];
+      const category = categoryFilter?.slice('category0NI:'.length);
+      categories.push(category);
+
+      if (!category) {
+        return Response.json({
+          totalHits: 1_000,
+          totalPages: 20,
+          products: [],
+          algoliaSearchResult: {
+            facets: { category0NI: { Pantry: 2, Frozen: 1 } },
+          },
+        });
+      }
+
+      if (category === 'Pantry') {
+        return Response.json({
+          totalHits: 2,
+          totalPages: 1,
+          products: [
+            {
+              productId: 'shared-EA-000',
+              name: 'Shared product',
+              singlePrice: { price: 200 },
+            },
+            {
+              productId: 'pantry-EA-000',
+              name: 'Pantry product',
+              singlePrice: { price: 300 },
+            },
+          ],
+        });
+      }
+
+      return Response.json({
+        totalHits: 1,
+        totalPages: 1,
+        products: [
+          {
+            productId: 'shared-EA-000',
+            name: 'Shared product',
+            singlePrice: { price: 200 },
+          },
+        ],
+      });
+    };
+    const collector = new PaknsaveCollector({
+      fetch: transport,
+      pageDelayMs: 0,
+      sleep: async () => undefined,
+    });
+
+    const result = await collector.collectSpecials({
+      sourceStoreId: 'store',
+      name: "PAK'nSAVE Test",
+      city: 'Auckland',
+    });
+
+    assert.deepEqual(categories, [undefined, 'Pantry', 'Frozen']);
+    assert.equal(result.pagesCollected, 3);
+    assert.equal(result.totalItemsReported, 2);
+    assert.equal(result.offers.length, 2);
+  });
+
+  it('fails rather than finalizing a category that is still capped', async () => {
+    const transport: typeof fetch = async (input, init) => {
+      const url = requestUrl(input);
+      if (url.pathname === '/api/user/get-current-user') {
+        return Response.json({ access_token: 'token' });
+      }
+      const body = JSON.parse(String(init?.body)) as {
+        algoliaQuery: { facetFilters?: string[][] };
+      };
+      if (!body.algoliaQuery.facetFilters) {
+        return Response.json({
+          totalHits: 1_000,
+          totalPages: 20,
+          algoliaSearchResult: {
+            facets: { category0NI: { Pantry: 1_000 } },
+          },
+        });
+      }
+      return Response.json({ totalHits: 1_000, totalPages: 20 });
+    };
+    const collector = new PaknsaveCollector({
+      fetch: transport,
+      pageDelayMs: 0,
+      sleep: async () => undefined,
+    });
+
+    await assert.rejects(
+      collector.collectSpecials({
+        sourceStoreId: 'store',
+        name: "PAK'nSAVE Test",
+        city: 'Auckland',
+      }),
+      /category "Pantry" is still capped at 1000 results/,
     );
   });
 });

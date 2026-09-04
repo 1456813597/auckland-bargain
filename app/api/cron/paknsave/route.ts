@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     storeId: process.env.PAKNSAVE_STORE_ID,
     storeQuery: process.env.PAKNSAVE_STORE_QUERY ?? 'Royal Oak',
     city: process.env.PAKNSAVE_STORE_CITY,
-    maxPages: positiveInteger(process.env.PAKNSAVE_MAX_PAGES, 12),
+    maxPages: positiveInteger(process.env.PAKNSAVE_MAX_PAGES, 20),
   });
 
   let runId: number | undefined;

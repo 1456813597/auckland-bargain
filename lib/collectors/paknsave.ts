@@ -6,8 +6,10 @@ const DEFAULT_WEB_ORIGIN = 'https://www.paknsave.co.nz';
 const DEFAULT_API_ORIGIN = 'https://api-prod.paknsave.co.nz';
 const DEFAULT_TIMEOUT_MS = 20_000;
 const DEFAULT_RETRIES = 2;
-const DEFAULT_MAX_PAGES = 12;
+const DEFAULT_MAX_PAGES = 20;
 const DEFAULT_PAGE_DELAY_MS = 125;
+const SEARCH_PAGE_SIZE = 50;
+const SEARCH_RESULT_CAP = 1_000;
 const USER_AGENT = 'AucklandBargain/0.1';
 
 type PaknsaveStore = {
@@ -15,23 +17,40 @@ type PaknsaveStore = {
   name?: string;
   banner?: string;
   address?: string | null;
+  region?: string | null;
   onlineActive?: boolean;
   physicalActive?: boolean;
   physicalAddress?: { cityName?: string | null };
 };
 
+type PaknsavePromotion = {
+  rewardValue?: number | null;
+  decal?: string | null;
+  threshold?: number | null;
+  multiProducts?: boolean | null;
+  cardDependencyFlag?: boolean | null;
+  bestPromotion?: boolean | null;
+};
+
 type PaknsaveProduct = {
   productId?: string;
   name?: string;
+  displayName?: string | null;
   brand?: string | null;
   units?: string | null;
   categories?: string[];
+  categoryTrees?: Array<{
+    level0?: string | null;
+    level1?: string | null;
+  }>;
   price?: number | null;
+  singlePrice?: { price?: number | null } | null;
   nonLoyaltyPrice?: number | null;
   multiBuy?: {
     quantity?: number | null;
     price?: number | null;
   } | null;
+  promotions?: PaknsavePromotion[];
   productImageUrls?: Record<string, string | null | undefined>;
   decalCode?: string | null;
 };
@@ -43,8 +62,12 @@ type AnonymousSession = {
 
 type SpecialsResponse = {
   totalHits?: number;
+  totalPages?: number;
   numberOfPages?: number;
   products?: PaknsaveProduct[];
+  algoliaSearchResult?: {
+    facets?: Record<string, Record<string, number>>;
+  };
 };
 
 export type PaknsaveCollectorOptions = {
@@ -89,6 +112,20 @@ function largestImage(images: PaknsaveProduct['productImageUrls']) {
   );
 }
 
+function productImage(productId: string) {
+  const numericId = productId.split('-')[0];
+  return /^\d+$/.test(numericId)
+    ? `https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/${numericId}.png`
+    : null;
+}
+
+function bestPromotion(product: PaknsaveProduct) {
+  return (
+    product.promotions?.find((promotion) => promotion.bestPromotion) ??
+    product.promotions?.[0]
+  );
+}
+
 function storeToCollectorStore(
   store: PaknsaveStore,
   cityOverride?: string,
@@ -116,25 +153,49 @@ export function toPaknsaveOffer(
   webOrigin = DEFAULT_WEB_ORIGIN,
 ): RawOffer | null {
   const sourceProductId = clean(product.productId);
-  const sourceName = clean(product.name);
-  const currentPriceCents = integerCents(product.price);
+  const sourceName = clean(product.name) ?? clean(product.displayName);
+  const currentPriceCents = integerCents(
+    product.singlePrice?.price ?? product.price,
+  );
   if (!sourceProductId || !sourceName || currentPriceCents === null)
     return null;
 
+  const promotion = bestPromotion(product);
+  const promotionValueCents = integerCents(promotion?.rewardValue);
   const nonLoyaltyPriceCents = integerCents(product.nonLoyaltyPrice);
-  const multiBuyQuantity = integerCents(product.multiBuy?.quantity);
-  const multiBuyTotalCents = integerCents(product.multiBuy?.price);
-  const hasMultiBuy = Boolean(
-    multiBuyQuantity && multiBuyTotalCents !== null && multiBuyQuantity > 0,
+  const multiBuyQuantity = integerCents(
+    product.multiBuy?.quantity ?? promotion?.threshold,
   );
-  const isMemberPrice = Boolean(
+  const multiBuyTotalCents = integerCents(
+    product.multiBuy?.price ?? promotion?.rewardValue,
+  );
+  const hasMultiBuy = Boolean(
+    multiBuyQuantity &&
+    multiBuyTotalCents !== null &&
+    multiBuyQuantity > 1 &&
+    (product.multiBuy || promotion?.multiProducts),
+  );
+  const hasSearchMemberPrice = Boolean(
+    promotion?.cardDependencyFlag && promotionValueCents !== null,
+  );
+  const hasLegacyMemberPrice = Boolean(
     !hasMultiBuy &&
     nonLoyaltyPriceCents !== null &&
     nonLoyaltyPriceCents > currentPriceCents,
   );
+  const isMemberPrice = hasSearchMemberPrice || hasLegacyMemberPrice;
+  const normalizedPromotionCents =
+    multiBuyQuantity && multiBuyQuantity > 1 && promotionValueCents !== null
+      ? Math.round(promotionValueCents / multiBuyQuantity)
+      : promotionValueCents;
   const multiBuyUnitCents = hasMultiBuy
     ? Math.round(multiBuyTotalCents! / multiBuyQuantity!)
     : null;
+  const memberPriceCents = hasSearchMemberPrice
+    ? normalizedPromotionCents
+    : hasLegacyMemberPrice
+      ? currentPriceCents
+      : null;
 
   let promotionText = "PAK'nSAVE special";
   if (hasMultiBuy) {
@@ -144,7 +205,7 @@ export function toPaknsaveOffer(
       (multiBuyTotalCents! / 100).toFixed(2);
   } else if (isMemberPrice) {
     promotionText = 'Club+ member price';
-  } else if (product.decalCode === '6000') {
+  } else if (product.decalCode === '6000' || promotion?.decal === '6000') {
     promotionText = "PAK'nSAVE Extra Low";
   }
 
@@ -152,19 +213,24 @@ export function toPaknsaveOffer(
     sourceProductId,
     sourceName,
     brand: clean(product.brand),
-    category: clean(product.categories?.[0]),
-    size: clean(product.units),
+    category:
+      clean(product.categories?.[0]) ??
+      clean(product.categoryTrees?.[0]?.level1) ??
+      clean(product.categoryTrees?.[0]?.level0),
+    size: clean(product.units) ?? clean(product.displayName),
     gtin: null,
-    imageUrl: largestImage(product.productImageUrls),
+    imageUrl:
+      largestImage(product.productImageUrls) ?? productImage(sourceProductId),
     sourceUrl:
       webOrigin +
       '/shop/product/' +
-      sourceProductId.toLocaleLowerCase('en-NZ').replaceAll('-', '_'),
+      sourceProductId.toLocaleLowerCase('en-NZ').replaceAll('-', '_') +
+      'pns',
     regularPriceCents: nonLoyaltyPriceCents ?? currentPriceCents,
     promoPriceCents: isMemberPrice
       ? null
-      : (multiBuyUnitCents ?? currentPriceCents),
-    memberPriceCents: isMemberPrice ? currentPriceCents : null,
+      : (multiBuyUnitCents ?? promotionValueCents ?? currentPriceCents),
+    memberPriceCents,
     promotionType: isMemberPrice ? 'MEMBER_PRICE' : 'SPECIAL',
     promotionText,
     validUntil: null,
@@ -187,6 +253,7 @@ export class PaknsaveCollector implements RetailerCollector {
   private readonly pageDelayMs: number;
   private readonly sleep: (milliseconds: number) => Promise<void>;
   private readonly fingerprint: string;
+  private readonly storeRegions = new Map<string, string>();
   private accessToken?: string;
   private accessTokenExpiresAt = 0;
 
@@ -303,6 +370,92 @@ export class PaknsaveCollector implements RetailerCollector {
     return (await response.json()) as T;
   }
 
+  private async searchPage(
+    storeId: string,
+    region: string,
+    page: number,
+    category?: string,
+  ) {
+    const categoryFacet = `category0${region}`;
+    return this.apiRequest<SpecialsResponse>(
+      '/v1/edge/search/paginated/products',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          algoliaQuery: {
+            query: '',
+            filters: `stores:${storeId} AND onPromotion:${storeId}`,
+            facets: [categoryFacet],
+            ...(category
+              ? { facetFilters: [[`${categoryFacet}:${category}`]] }
+              : {}),
+            maxValuesPerFacet: 100,
+          },
+          algoliaFacetQueries: [],
+          storeId,
+          hitsPerPage: SEARCH_PAGE_SIZE,
+          page,
+          sortOrder:
+            region === 'SI' ? 'SI_POPULARITY_ASC' : 'NI_POPULARITY_ASC',
+          tobaccoQuery: false,
+          precisionMedia: {
+            adDomain: 'CATEGORY_PAGE',
+            adPositions: [3, 6, 9],
+            publishImpressionEvent: false,
+            disableAds: true,
+          },
+        }),
+      },
+    );
+  }
+
+  private totalPages(response: SpecialsResponse) {
+    const totalPages = response.totalPages ?? response.numberOfPages ?? 1;
+    if (!Number.isSafeInteger(totalPages) || totalPages < 1) {
+      throw new Error("PAK'nSAVE returned an invalid page count.");
+    }
+    if (totalPages > this.maxPages) {
+      throw new Error(
+        "PAK'nSAVE collection needs more than the configured " +
+          String(this.maxPages) +
+          ' pages.',
+      );
+    }
+    return totalPages;
+  }
+
+  private addProducts(
+    destination: Map<string, PaknsaveProduct>,
+    response: SpecialsResponse,
+  ) {
+    for (const product of response.products ?? []) {
+      const productId = clean(product.productId);
+      if (productId) destination.set(productId, product);
+    }
+  }
+
+  private async collectSearchPages(
+    storeId: string,
+    region: string,
+    category: string | undefined,
+    firstPage: SpecialsResponse,
+  ) {
+    const products = new Map<string, PaknsaveProduct>();
+    this.addProducts(products, firstPage);
+    const totalPages = this.totalPages(firstPage);
+
+    for (let page = 1; page < totalPages; page += 1) {
+      await this.sleep(this.pageDelayMs);
+      this.addProducts(
+        products,
+        await this.searchPage(storeId, region, page, category),
+      );
+    }
+
+    return { products, pagesCollected: totalPages };
+  }
+
   async getStores() {
     const response = await this.apiRequest<{ stores?: PaknsaveStore[] }>(
       '/v1/edge/store',
@@ -337,7 +490,13 @@ export class PaknsaveCollector implements RetailerCollector {
       );
     }
 
-    return [storeToCollectorStore(selected, this.city)];
+    const collectorStore = storeToCollectorStore(selected, this.city);
+    const region = clean(selected.region)?.toLocaleUpperCase('en-NZ');
+    this.storeRegions.set(
+      collectorStore.sourceStoreId,
+      region === 'SI' ? 'SI' : 'NI',
+    );
+    return [collectorStore];
   }
 
   async getSpecials(store: CollectorStore) {
@@ -347,45 +506,76 @@ export class PaknsaveCollector implements RetailerCollector {
 
   async collectSpecials(store: CollectorStore): Promise<PaknsaveCollection> {
     const collectedAt = new Date();
-    const products = new Map<string, PaknsaveProduct>();
-    let page = 0;
-    let totalPages = 1;
-    let totalItemsReported = 0;
+    const region = this.storeRegions.get(store.sourceStoreId) ?? 'NI';
+    const firstPage = await this.searchPage(store.sourceStoreId, region, 0);
+    const reportedTotal = Math.max(0, firstPage.totalHits ?? 0);
+    let pagesCollected = 1;
+    let products: Map<string, PaknsaveProduct>;
 
-    do {
-      if (page >= this.maxPages) {
+    if (reportedTotal < SEARCH_RESULT_CAP) {
+      const collection = await this.collectSearchPages(
+        store.sourceStoreId,
+        region,
+        undefined,
+        firstPage,
+      );
+      products = collection.products;
+      pagesCollected = collection.pagesCollected;
+      if (reportedTotal > 0 && products.size !== reportedTotal) {
         throw new Error(
-          "PAK'nSAVE collection needs more than the configured " +
-            String(this.maxPages) +
-            ' pages.',
+          `PAK'nSAVE reported ${reportedTotal} specials but returned ${products.size}.`,
+        );
+      }
+    } else {
+      const categoryFacet = `category0${region}`;
+      const categories = Object.entries(
+        firstPage.algoliaSearchResult?.facets?.[categoryFacet] ?? {},
+      ).filter(([, count]) => Number.isSafeInteger(count) && count > 0);
+      if (categories.length === 0) {
+        throw new Error(
+          "PAK'nSAVE capped the search results without returning category facets.",
         );
       }
 
-      const response = await this.apiRequest<SpecialsResponse>(
-        '/mobile/ecomm-products/PNS/' +
-          encodeURIComponent(store.sourceStoreId) +
-          '/specials?page=' +
-          String(page),
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: '{}',
-        },
-      );
-      totalPages = Math.max(1, response.numberOfPages ?? 1);
-      totalItemsReported = Math.max(
-        totalItemsReported,
-        response.totalHits ?? 0,
-      );
+      products = new Map<string, PaknsaveProduct>();
+      for (const [category, facetCount] of categories) {
+        await this.sleep(this.pageDelayMs);
+        const categoryFirstPage = await this.searchPage(
+          store.sourceStoreId,
+          region,
+          0,
+          category,
+        );
+        pagesCollected += 1;
+        const categoryTotal = Math.max(0, categoryFirstPage.totalHits ?? 0);
+        if (categoryTotal >= SEARCH_RESULT_CAP) {
+          throw new Error(
+            `PAK'nSAVE category "${category}" is still capped at ${categoryTotal} results.`,
+          );
+        }
+        if (categoryTotal !== facetCount) {
+          throw new Error(
+            `PAK'nSAVE category "${category}" changed from ${facetCount} to ${categoryTotal} results during collection.`,
+          );
+        }
 
-      for (const product of response.products ?? []) {
-        if (!clean(product.productId)) continue;
-        products.set(product.productId!, product);
+        const categoryCollection = await this.collectSearchPages(
+          store.sourceStoreId,
+          region,
+          category,
+          categoryFirstPage,
+        );
+        pagesCollected += categoryCollection.pagesCollected - 1;
+        if (categoryCollection.products.size !== categoryTotal) {
+          throw new Error(
+            `PAK'nSAVE category "${category}" reported ${categoryTotal} specials but returned ${categoryCollection.products.size}.`,
+          );
+        }
+        for (const [productId, product] of categoryCollection.products) {
+          products.set(productId, product);
+        }
       }
-
-      page += 1;
-      if (page < totalPages) await this.sleep(this.pageDelayMs);
-    } while (page < totalPages);
+    }
 
     const offers = [...products.values()]
       .map((product) => toPaknsaveOffer(product, collectedAt, this.webOrigin))
@@ -398,8 +588,8 @@ export class PaknsaveCollector implements RetailerCollector {
     return {
       store,
       offers,
-      pagesCollected: page,
-      totalItemsReported: Math.max(totalItemsReported, products.size),
+      pagesCollected,
+      totalItemsReported: products.size,
     };
   }
 }
