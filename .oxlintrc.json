@@ -23,6 +23,8 @@
     "typeCheck": false
   },
   "ignorePatterns": [
+    "node_modules/**",
+    ".vercel/**",
     ".next/**",
     ".vinext/**",
     "out/**",
