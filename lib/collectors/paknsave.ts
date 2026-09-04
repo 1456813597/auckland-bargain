@@ -188,9 +188,6 @@ export function toPaknsaveOffer(
     multiBuyQuantity && multiBuyQuantity > 1 && promotionValueCents !== null
       ? Math.round(promotionValueCents / multiBuyQuantity)
       : promotionValueCents;
-  const multiBuyUnitCents = hasMultiBuy
-    ? Math.round(multiBuyTotalCents! / multiBuyQuantity!)
-    : null;
   const memberPriceCents = hasSearchMemberPrice
     ? normalizedPromotionCents
     : hasLegacyMemberPrice
@@ -227,9 +224,10 @@ export function toPaknsaveOffer(
       sourceProductId.toLocaleLowerCase('en-NZ').replaceAll('-', '_') +
       'pns',
     regularPriceCents: nonLoyaltyPriceCents ?? currentPriceCents,
-    promoPriceCents: isMemberPrice
-      ? null
-      : (multiBuyUnitCents ?? promotionValueCents ?? currentPriceCents),
+    // singlePrice.price is the amount charged when the shopper buys one item.
+    // A multi-buy rewardValue is the total charged only after its threshold is
+    // met, so dividing it here makes the headline "live price" misleading.
+    promoPriceCents: isMemberPrice ? null : currentPriceCents,
     memberPriceCents,
     promotionType: isMemberPrice ? 'MEMBER_PRICE' : 'SPECIAL',
     promotionText,

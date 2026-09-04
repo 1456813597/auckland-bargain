@@ -57,6 +57,22 @@ describe('strong-deal qualification', () => {
     );
   });
 
+  it("scores a PAK'nSAVE multibuy against its single-item price", () => {
+    assert.equal(
+      isStrongDeal(
+        deal({
+          retailer: "PAK'nSAVE",
+          price: 2.69,
+          regularPrice: 2.69,
+          average90d: 2.69,
+          low90d: 2.69,
+          promotion: '3 for $5.00',
+        }),
+      ),
+      true,
+    );
+  });
+
   it("keeps a PAK'nSAVE product at a proven historical low", () => {
     const candidate = deal({
       retailer: "PAK'nSAVE",
@@ -86,7 +102,7 @@ describe('strong-deal qualification', () => {
     assert.equal(promotionLabelForDiscount(47), null);
   });
 
-  it("reserves space for qualifying PAK'nSAVE deals without admitting weak offers", () => {
+  it('applies the result limit separately to every retailer', () => {
     const woolworthsDeals = Array.from({ length: 105 }, (_, index) =>
       deal({ id: `woolworths-${index}`, name: `Woolworths ${index}` }),
     );
@@ -114,10 +130,15 @@ describe('strong-deal qualification', () => {
       weakPaknsaveDeal,
     ]);
 
-    assert.equal(selected.length, 100);
+    assert.equal(selected.length, 112);
     assert.equal(
       selected.filter((candidate) => candidate.retailer === "PAK'nSAVE").length,
-      10,
+      12,
+    );
+    assert.equal(
+      selected.filter((candidate) => candidate.retailer === 'Woolworths')
+        .length,
+      100,
     );
     assert.equal(
       selected.some((candidate) => candidate.id === 'paknsave-weak'),

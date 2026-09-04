@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-03T09:51:48.736Z",
+  "generatedAt": "2026-09-04T11:14:08.443Z",
   "retailers": [
     {
       "slug": "paknsave",
@@ -11,8 +11,8 @@
         "city": "Auckland",
         "address": "691 Manukau Road, Royal Oak, Auckland, 1023"
       },
-      "dealCount": 100,
-      "collectedAt": "2026-09-03T09:51:46.173Z"
+      "dealCount": 22,
+      "collectedAt": "2026-09-04T11:13:52.813Z"
     },
     {
       "slug": "woolworths",
@@ -1925,54 +1925,6 @@
       ]
     },
     {
-      "id": "paknsave-5019937-EA-000",
-      "name": "Chunky Style Tuna In Oil",
-      "size": "95g",
-      "brand": "Sealord",
-      "category": "Canned Foods & Packets",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.67,
-      "regularPrice": 2.69,
-      "average90d": 2.69,
-      "low90d": 1.67,
-      "score": 99,
-      "promotion": "3 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5019937.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.67
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5019940-EA-000",
-      "name": "Chunky Style Tuna In Spring Water",
-      "size": "95g",
-      "brand": "Sealord",
-      "category": "Canned Foods & Packets",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.67,
-      "regularPrice": 2.69,
-      "average90d": 2.69,
-      "low90d": 1.67,
-      "score": 99,
-      "promotion": "3 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5019940.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.67
-        }
-      ]
-    },
-    {
       "id": "woolworths-917789",
       "name": "Clairol bold & bright hair colour black licorice 20",
       "size": "1pack",
@@ -2477,146 +2429,98 @@
       ]
     },
     {
-      "id": "paknsave-5009951-EA-000",
-      "name": "Lemon Pepper Flavour Tuna",
-      "size": "95g",
-      "brand": "Sealord",
-      "category": "Canned Foods & Packets",
+      "id": "paknsave-5302009-EA-000",
+      "name": "Adult Beef Jelly Wet Cat Food Pouch",
+      "size": "85g",
+      "brand": "Purina Oscar",
+      "category": "Cat",
       "retailer": "PAK'nSAVE",
       "store": "PAK'nSAVE Royal Oak",
-      "price": 1.67,
-      "regularPrice": 2.69,
-      "average90d": 2.69,
-      "low90d": 1.67,
-      "score": 99,
-      "promotion": "3 for $5.00",
+      "price": 1.29,
+      "regularPrice": 1.29,
+      "average90d": 1.29,
+      "low90d": 1.29,
+      "score": 55,
+      "promotion": "4 for $3.00",
       "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5009951.png",
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5302009.png",
       "color": "#f4b942",
       "history": [
         {
-          "date": "03 Sept",
-          "price": 1.67
+          "date": "04 Sept",
+          "price": 1.29
         }
       ]
     },
     {
-      "id": "paknsave-5017689-EA-000",
-      "name": "Mayonnaise Tuna",
-      "size": "95g",
-      "brand": "Sealord",
-      "category": "Canned Foods & Packets",
+      "id": "paknsave-5302512-EA-000",
+      "name": "Adult Chicken Jelly Wet Cat Food Pouch",
+      "size": "85g",
+      "brand": "Purina Oscar",
+      "category": "Cat",
       "retailer": "PAK'nSAVE",
       "store": "PAK'nSAVE Royal Oak",
-      "price": 1.67,
-      "regularPrice": 2.69,
-      "average90d": 2.69,
-      "low90d": 1.67,
-      "score": 99,
-      "promotion": "3 for $5.00",
+      "price": 1.29,
+      "regularPrice": 1.29,
+      "average90d": 1.29,
+      "low90d": 1.29,
+      "score": 55,
+      "promotion": "4 for $3.00",
       "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5017689.png",
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5302512.png",
       "color": "#f4b942",
       "history": [
         {
-          "date": "03 Sept",
-          "price": 1.67
+          "date": "04 Sept",
+          "price": 1.29
         }
       ]
     },
     {
-      "id": "paknsave-5032120-EA-000",
-      "name": "Satay Tuna",
-      "size": "95g",
-      "brand": "Sealord",
-      "category": "Canned Foods & Packets",
+      "id": "paknsave-5302498-EA-000",
+      "name": "Adult Lamb Jelly Wet Cat Food Pouch",
+      "size": "85g",
+      "brand": "Purina Oscar",
+      "category": "Cat",
       "retailer": "PAK'nSAVE",
       "store": "PAK'nSAVE Royal Oak",
-      "price": 1.67,
-      "regularPrice": 2.69,
-      "average90d": 2.69,
-      "low90d": 1.67,
-      "score": 99,
-      "promotion": "3 for $5.00",
+      "price": 1.29,
+      "regularPrice": 1.29,
+      "average90d": 1.29,
+      "low90d": 1.29,
+      "score": 55,
+      "promotion": "4 for $3.00",
       "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5032120.png",
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5302498.png",
       "color": "#f4b942",
       "history": [
         {
-          "date": "03 Sept",
-          "price": 1.67
+          "date": "04 Sept",
+          "price": 1.29
         }
       ]
     },
     {
-      "id": "paknsave-5009952-EA-000",
-      "name": "Smoked Flavour Tuna",
-      "size": "95g",
-      "brand": "Sealord",
-      "category": "Canned Foods & Packets",
+      "id": "paknsave-5302513-EA-000",
+      "name": "Adult Salmon Jelly Wet Cat Food Pouch",
+      "size": "85g",
+      "brand": "Purina Oscar",
+      "category": "Cat",
       "retailer": "PAK'nSAVE",
       "store": "PAK'nSAVE Royal Oak",
-      "price": 1.67,
-      "regularPrice": 2.69,
-      "average90d": 2.69,
-      "low90d": 1.67,
-      "score": 99,
-      "promotion": "3 for $5.00",
+      "price": 1.29,
+      "regularPrice": 1.29,
+      "average90d": 1.29,
+      "low90d": 1.29,
+      "score": 55,
+      "promotion": "4 for $3.00",
       "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5009952.png",
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5302513.png",
       "color": "#f4b942",
       "history": [
         {
-          "date": "03 Sept",
-          "price": 1.67
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5016928-EA-000",
-      "name": "Sweet Thai Chilli Tuna",
-      "size": "95g",
-      "brand": "Sealord",
-      "category": "Canned Foods & Packets",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.67,
-      "regularPrice": 2.69,
-      "average90d": 2.69,
-      "low90d": 1.67,
-      "score": 99,
-      "promotion": "3 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5016928.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.67
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5009950-EA-000",
-      "name": "Tomato & Basil Tuna",
-      "size": "95g",
-      "brand": "Sealord",
-      "category": "Canned Foods & Packets",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.67,
-      "regularPrice": 2.69,
-      "average90d": 2.69,
-      "low90d": 1.67,
-      "score": 99,
-      "promotion": "3 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5009950.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.67
+          "date": "04 Sept",
+          "price": 1.29
         }
       ]
     },
@@ -2628,11 +2532,11 @@
       "category": "Canned Foods & Packets",
       "retailer": "PAK'nSAVE",
       "store": "PAK'nSAVE Royal Oak",
-      "price": 2.5,
+      "price": 3.7,
       "regularPrice": 3.7,
       "average90d": 3.7,
       "low90d": 2.5,
-      "score": 93,
+      "score": 55,
       "promotion": "2 for $5.00",
       "memberOnly": false,
       "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5027795.png",
@@ -2641,6 +2545,10 @@
         {
           "date": "03 Sept",
           "price": 2.5
+        },
+        {
+          "date": "04 Sept",
+          "price": 3.7
         }
       ]
     },
@@ -2652,11 +2560,11 @@
       "category": "Canned Foods & Packets",
       "retailer": "PAK'nSAVE",
       "store": "PAK'nSAVE Royal Oak",
-      "price": 2.5,
+      "price": 3.7,
       "regularPrice": 3.7,
       "average90d": 3.7,
       "low90d": 2.5,
-      "score": 93,
+      "score": 55,
       "promotion": "2 for $5.00",
       "memberOnly": false,
       "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5027785.png",
@@ -2665,6 +2573,138 @@
         {
           "date": "03 Sept",
           "price": 2.5
+        },
+        {
+          "date": "04 Sept",
+          "price": 3.7
+        }
+      ]
+    },
+    {
+      "id": "paknsave-5019937-EA-000",
+      "name": "Chunky Style Tuna In Oil",
+      "size": "95g",
+      "brand": "Sealord",
+      "category": "Canned Foods & Packets",
+      "retailer": "PAK'nSAVE",
+      "store": "PAK'nSAVE Royal Oak",
+      "price": 2.69,
+      "regularPrice": 2.69,
+      "average90d": 2.69,
+      "low90d": 1.67,
+      "score": 55,
+      "promotion": "3 for $5.00",
+      "memberOnly": false,
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5019937.png",
+      "color": "#f4b942",
+      "history": [
+        {
+          "date": "03 Sept",
+          "price": 1.67
+        },
+        {
+          "date": "04 Sept",
+          "price": 2.69
+        }
+      ]
+    },
+    {
+      "id": "paknsave-5019940-EA-000",
+      "name": "Chunky Style Tuna In Spring Water",
+      "size": "95g",
+      "brand": "Sealord",
+      "category": "Canned Foods & Packets",
+      "retailer": "PAK'nSAVE",
+      "store": "PAK'nSAVE Royal Oak",
+      "price": 2.69,
+      "regularPrice": 2.69,
+      "average90d": 2.69,
+      "low90d": 1.67,
+      "score": 55,
+      "promotion": "3 for $5.00",
+      "memberOnly": false,
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5019940.png",
+      "color": "#f4b942",
+      "history": [
+        {
+          "date": "03 Sept",
+          "price": 1.67
+        },
+        {
+          "date": "04 Sept",
+          "price": 2.69
+        }
+      ]
+    },
+    {
+      "id": "paknsave-5295513-EA-000",
+      "name": "Crunches Cheese & Onion Flavoured Crackers",
+      "size": "160g",
+      "brand": "Eta",
+      "category": "Biscuits & Crackers",
+      "retailer": "PAK'nSAVE",
+      "store": "PAK'nSAVE Royal Oak",
+      "price": 2.89,
+      "regularPrice": 2.89,
+      "average90d": 2.89,
+      "low90d": 2.89,
+      "score": 55,
+      "promotion": "3 for $5.00",
+      "memberOnly": false,
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5295513.png",
+      "color": "#f4b942",
+      "history": [
+        {
+          "date": "04 Sept",
+          "price": 2.89
+        }
+      ]
+    },
+    {
+      "id": "paknsave-5295510-EA-000",
+      "name": "Crunches Roast Chicken Flavoured Crackers",
+      "size": "160g",
+      "brand": "Eta",
+      "category": "Biscuits & Crackers",
+      "retailer": "PAK'nSAVE",
+      "store": "PAK'nSAVE Royal Oak",
+      "price": 2.89,
+      "regularPrice": 2.89,
+      "average90d": 2.89,
+      "low90d": 2.89,
+      "score": 55,
+      "promotion": "3 for $5.00",
+      "memberOnly": false,
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5295510.png",
+      "color": "#f4b942",
+      "history": [
+        {
+          "date": "04 Sept",
+          "price": 2.89
+        }
+      ]
+    },
+    {
+      "id": "paknsave-5295565-EA-000",
+      "name": "Crunches Sour Cream & Chives Flavoured Crackers",
+      "size": "160g",
+      "brand": "Eta",
+      "category": "Biscuits & Crackers",
+      "retailer": "PAK'nSAVE",
+      "store": "PAK'nSAVE Royal Oak",
+      "price": 2.89,
+      "regularPrice": 2.89,
+      "average90d": 2.89,
+      "low90d": 2.89,
+      "score": 55,
+      "promotion": "3 for $5.00",
+      "memberOnly": false,
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5295565.png",
+      "color": "#f4b942",
+      "history": [
+        {
+          "date": "04 Sept",
+          "price": 2.89
         }
       ]
     },
@@ -2676,11 +2716,11 @@
       "category": "Canned Foods & Packets",
       "retailer": "PAK'nSAVE",
       "store": "PAK'nSAVE Royal Oak",
-      "price": 2.5,
+      "price": 3.7,
       "regularPrice": 3.7,
       "average90d": 3.7,
       "low90d": 2.5,
-      "score": 93,
+      "score": 55,
       "promotion": "2 for $5.00",
       "memberOnly": false,
       "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5226249.png",
@@ -2689,6 +2729,250 @@
         {
           "date": "03 Sept",
           "price": 2.5
+        },
+        {
+          "date": "04 Sept",
+          "price": 3.7
+        }
+      ]
+    },
+    {
+      "id": "paknsave-5009951-EA-000",
+      "name": "Lemon Pepper Flavour Tuna",
+      "size": "95g",
+      "brand": "Sealord",
+      "category": "Canned Foods & Packets",
+      "retailer": "PAK'nSAVE",
+      "store": "PAK'nSAVE Royal Oak",
+      "price": 2.69,
+      "regularPrice": 2.69,
+      "average90d": 2.69,
+      "low90d": 1.67,
+      "score": 55,
+      "promotion": "3 for $5.00",
+      "memberOnly": false,
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5009951.png",
+      "color": "#f4b942",
+      "history": [
+        {
+          "date": "03 Sept",
+          "price": 1.67
+        },
+        {
+          "date": "04 Sept",
+          "price": 2.69
+        }
+      ]
+    },
+    {
+      "id": "paknsave-5017689-EA-000",
+      "name": "Mayonnaise Tuna",
+      "size": "95g",
+      "brand": "Sealord",
+      "category": "Canned Foods & Packets",
+      "retailer": "PAK'nSAVE",
+      "store": "PAK'nSAVE Royal Oak",
+      "price": 2.69,
+      "regularPrice": 2.69,
+      "average90d": 2.69,
+      "low90d": 1.67,
+      "score": 55,
+      "promotion": "3 for $5.00",
+      "memberOnly": false,
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5017689.png",
+      "color": "#f4b942",
+      "history": [
+        {
+          "date": "03 Sept",
+          "price": 1.67
+        },
+        {
+          "date": "04 Sept",
+          "price": 2.69
+        }
+      ]
+    },
+    {
+      "id": "paknsave-5335812-EA-000",
+      "name": "Olive Oil Blend Tuna",
+      "size": "95g",
+      "brand": "Sealord",
+      "category": "Canned Foods & Packets",
+      "retailer": "PAK'nSAVE",
+      "store": "PAK'nSAVE Royal Oak",
+      "price": 2.69,
+      "regularPrice": 2.69,
+      "average90d": 2.69,
+      "low90d": 2.69,
+      "score": 55,
+      "promotion": "3 for $5.00",
+      "memberOnly": false,
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5335812.png",
+      "color": "#f4b942",
+      "history": [
+        {
+          "date": "04 Sept",
+          "price": 2.69
+        }
+      ]
+    },
+    {
+      "id": "paknsave-5032120-EA-000",
+      "name": "Satay Tuna",
+      "size": "95g",
+      "brand": "Sealord",
+      "category": "Canned Foods & Packets",
+      "retailer": "PAK'nSAVE",
+      "store": "PAK'nSAVE Royal Oak",
+      "price": 2.69,
+      "regularPrice": 2.69,
+      "average90d": 2.69,
+      "low90d": 1.67,
+      "score": 55,
+      "promotion": "3 for $5.00",
+      "memberOnly": false,
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5032120.png",
+      "color": "#f4b942",
+      "history": [
+        {
+          "date": "03 Sept",
+          "price": 1.67
+        },
+        {
+          "date": "04 Sept",
+          "price": 2.69
+        }
+      ]
+    },
+    {
+      "id": "paknsave-5009952-EA-000",
+      "name": "Smoked Flavour Tuna",
+      "size": "95g",
+      "brand": "Sealord",
+      "category": "Canned Foods & Packets",
+      "retailer": "PAK'nSAVE",
+      "store": "PAK'nSAVE Royal Oak",
+      "price": 2.69,
+      "regularPrice": 2.69,
+      "average90d": 2.69,
+      "low90d": 1.67,
+      "score": 55,
+      "promotion": "3 for $5.00",
+      "memberOnly": false,
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5009952.png",
+      "color": "#f4b942",
+      "history": [
+        {
+          "date": "03 Sept",
+          "price": 1.67
+        },
+        {
+          "date": "04 Sept",
+          "price": 2.69
+        }
+      ]
+    },
+    {
+      "id": "paknsave-5316405-EA-000",
+      "name": "Snacks Minis Sour Cream & Chives Crackers",
+      "size": "135g",
+      "brand": "Griffin's",
+      "category": "Biscuits & Crackers",
+      "retailer": "PAK'nSAVE",
+      "store": "PAK'nSAVE Royal Oak",
+      "price": 2.89,
+      "regularPrice": 2.89,
+      "average90d": 2.89,
+      "low90d": 2.89,
+      "score": 55,
+      "promotion": "3 for $5.00",
+      "memberOnly": false,
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5316405.png",
+      "color": "#f4b942",
+      "history": [
+        {
+          "date": "04 Sept",
+          "price": 2.89
+        }
+      ]
+    },
+    {
+      "id": "paknsave-5316404-EA-000",
+      "name": "Snax Minis Cheese & Bacon Crackers",
+      "size": "135g",
+      "brand": "Griffin's",
+      "category": "Biscuits & Crackers",
+      "retailer": "PAK'nSAVE",
+      "store": "PAK'nSAVE Royal Oak",
+      "price": 2.89,
+      "regularPrice": 2.89,
+      "average90d": 2.89,
+      "low90d": 2.89,
+      "score": 55,
+      "promotion": "3 for $5.00",
+      "memberOnly": false,
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5316404.png",
+      "color": "#f4b942",
+      "history": [
+        {
+          "date": "04 Sept",
+          "price": 2.89
+        }
+      ]
+    },
+    {
+      "id": "paknsave-5016928-EA-000",
+      "name": "Sweet Thai Chilli Tuna",
+      "size": "95g",
+      "brand": "Sealord",
+      "category": "Canned Foods & Packets",
+      "retailer": "PAK'nSAVE",
+      "store": "PAK'nSAVE Royal Oak",
+      "price": 2.69,
+      "regularPrice": 2.69,
+      "average90d": 2.69,
+      "low90d": 1.67,
+      "score": 55,
+      "promotion": "3 for $5.00",
+      "memberOnly": false,
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5016928.png",
+      "color": "#f4b942",
+      "history": [
+        {
+          "date": "03 Sept",
+          "price": 1.67
+        },
+        {
+          "date": "04 Sept",
+          "price": 2.69
+        }
+      ]
+    },
+    {
+      "id": "paknsave-5009950-EA-000",
+      "name": "Tomato & Basil Tuna",
+      "size": "95g",
+      "brand": "Sealord",
+      "category": "Canned Foods & Packets",
+      "retailer": "PAK'nSAVE",
+      "store": "PAK'nSAVE Royal Oak",
+      "price": 2.69,
+      "regularPrice": 2.69,
+      "average90d": 2.69,
+      "low90d": 1.67,
+      "score": 55,
+      "promotion": "3 for $5.00",
+      "memberOnly": false,
+      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5009950.png",
+      "color": "#f4b942",
+      "history": [
+        {
+          "date": "03 Sept",
+          "price": 1.67
+        },
+        {
+          "date": "04 Sept",
+          "price": 2.69
         }
       ]
     },
@@ -2700,11 +2984,11 @@
       "category": "Canned Foods & Packets",
       "retailer": "PAK'nSAVE",
       "store": "PAK'nSAVE Royal Oak",
-      "price": 2.5,
+      "price": 3.7,
       "regularPrice": 3.7,
       "average90d": 3.7,
       "low90d": 2.5,
-      "score": 93,
+      "score": 55,
       "promotion": "2 for $5.00",
       "memberOnly": false,
       "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5226248.png",
@@ -2713,2118 +2997,10 @@
         {
           "date": "03 Sept",
           "price": 2.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5030393-EA-000",
-      "name": "Burger Rings",
-      "size": "120g",
-      "brand": "Bluebird",
-      "category": "Chips, Nuts & Snacks",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.5,
-      "regularPrice": 1.99,
-      "average90d": 1.99,
-      "low90d": 1.5,
-      "score": 85,
-      "promotion": "2 for $3.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5030393.png",
-      "color": "#f4b942",
-      "history": [
+        },
         {
-          "date": "03 Sept",
-          "price": 1.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5030395-EA-000",
-      "name": "Cheezels",
-      "size": "120g",
-      "brand": "Bluebird",
-      "category": "Chips, Nuts & Snacks",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.5,
-      "regularPrice": 1.99,
-      "average90d": 1.99,
-      "low90d": 1.5,
-      "score": 85,
-      "promotion": "2 for $3.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5030395.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5016212-EA-000",
-      "name": "Classic Collection Cuts In Gravy with Beef & Liver Wet Cat Food",
-      "size": "85g",
-      "brand": "Dine",
-      "category": "Cat",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.2,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.2,
-      "score": 85,
-      "promotion": "5 for $6.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5016212.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.2
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5016213-EA-000",
-      "name": "Classic Collection Cuts in Gravy with Lamb Wet Cat Food",
-      "size": "85g",
-      "brand": "Dine",
-      "category": "Cat",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.2,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.2,
-      "score": 85,
-      "promotion": "5 for $6.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5016213.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.2
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5026612-EA-000",
-      "name": "Classic Collection Saucy Morsels with Salmon Wet Cat Food",
-      "size": "85g",
-      "brand": "Dine",
-      "category": "Cat",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.2,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.2,
-      "score": 85,
-      "promotion": "5 for $6.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5026612.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.2
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5038187-EA-000",
-      "name": "Classic Collection Slices With Succulent Chicken Wet Cat Food",
-      "size": "85g",
-      "brand": "Dine",
-      "category": "Cat",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.2,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.2,
-      "score": 85,
-      "promotion": "5 for $6.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5038187.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.2
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5018223-EA-000",
-      "name": "Classic Collection Slices with Tender Turkey Wet Cat Food",
-      "size": "85g",
-      "brand": "Dine",
-      "category": "Cat",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.2,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.2,
-      "score": 85,
-      "promotion": "5 for $6.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5018223.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.2
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5016211-EA-000",
-      "name": "Classic Collection Terrine with Tender Beef Wet Cat Food",
-      "size": "85g",
-      "brand": "Dine",
-      "category": "Cat",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.2,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.2,
-      "score": 85,
-      "promotion": "5 for $6.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5016211.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.2
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5103767-EA-000",
-      "name": "Kitten With Tender Chicken Wet Cat Food",
-      "size": "85g",
-      "brand": "Dine",
-      "category": "Cat",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.2,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.2,
-      "score": 85,
-      "promotion": "5 for $6.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5103767.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.2
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5265572-EA-000",
-      "name": "Sensations Cheesy Broccoli & Potato With Parmesan Croutons Soup",
-      "size": "2 x 27g",
-      "brand": "Continental",
-      "category": "Canned Foods & Packets",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.25,
-      "regularPrice": 2.99,
-      "average90d": 2.99,
-      "low90d": 2.25,
-      "score": 85,
-      "promotion": "2 for $4.50",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5265572.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.25
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5265574-EA-000",
-      "name": "Sensations Creamy Roast Chicken & Spring Onion With Roasted Garlic Croutons Soup",
-      "size": "2 x 30.5g",
-      "brand": "Continental",
-      "category": "Canned Foods & Packets",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.25,
-      "regularPrice": 2.99,
-      "average90d": 2.99,
-      "low90d": 2.25,
-      "score": 85,
-      "promotion": "2 for $4.50",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5265574.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.25
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5265573-EA-000",
-      "name": "Sensations Harvest Pumpkin & Sour Cream With Roasted Garlic Croutons Soup",
-      "size": "2 x 35g",
-      "brand": "Continental",
-      "category": "Canned Foods & Packets",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.25,
-      "regularPrice": 2.99,
-      "average90d": 2.99,
-      "low90d": 2.25,
-      "score": 85,
-      "promotion": "2 for $4.50",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5265573.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.25
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5265601-EA-000",
-      "name": "Sensations Sweet Potato Pumpkin & Caramelised Onion With Roasted Garlic Croutons Soup",
-      "size": "2 x 31.5g",
-      "brand": "Continental",
-      "category": "Canned Foods & Packets",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.25,
-      "regularPrice": 2.99,
-      "average90d": 2.99,
-      "low90d": 2.25,
-      "score": 85,
-      "promotion": "2 for $4.50",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5265601.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.25
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5265578-EA-000",
-      "name": "Sensations Vine Ripened Tomato & Ricotta With Basil Soup",
-      "size": "2 x 27g",
-      "brand": "Continental",
-      "category": "Canned Foods & Packets",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.25,
-      "regularPrice": 2.99,
-      "average90d": 2.99,
-      "low90d": 2.25,
-      "score": 85,
-      "promotion": "2 for $4.50",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5265578.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.25
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5030392-EA-000",
-      "name": "Twisties Cheese Corn Snacks",
-      "size": "120g",
-      "brand": "Bluebird",
-      "category": "Chips, Nuts & Snacks",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.5,
-      "regularPrice": 1.99,
-      "average90d": 1.99,
-      "low90d": 1.5,
-      "score": 85,
-      "promotion": "2 for $3.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5030392.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5018111-EA-000",
-      "name": "Apple & Mango 6+ Months",
-      "size": "120g",
-      "brand": "Natureland",
-      "category": "Baby & Toddler Food",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.25,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.25,
-      "score": 80,
-      "promotion": "4 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5018111.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.25
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5018107-EA-000",
-      "name": "Banana & Apple With Berries 6+ Months",
-      "size": "120g",
-      "brand": "Natureland",
-      "category": "Baby & Toddler Food",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.25,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.25,
-      "score": 80,
-      "promotion": "4 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5018107.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.25
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5284230-EA-000",
-      "name": "Banana & Pear With NZ Kiwifruit 6+ Months Super Smooth",
-      "size": "120g",
-      "brand": "Natureland",
-      "category": "Baby & Toddler Food",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.25,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.25,
-      "score": 80,
-      "promotion": "4 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5284230.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.25
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5018109-EA-000",
-      "name": "Banana Custard 6+ Months",
-      "size": "120g",
-      "brand": "Natureland",
-      "category": "Baby & Toddler Food",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.25,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.25,
-      "score": 80,
-      "promotion": "4 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5018109.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.25
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5010825-EA-000",
-      "name": "Chicken Potato Chips",
-      "size": "150g",
-      "brand": "Eta Ripple Cut",
-      "category": "Chips, Nuts & Snacks",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.5,
-      "regularPrice": 1.89,
-      "average90d": 1.89,
-      "low90d": 1.5,
-      "score": 80,
-      "promotion": "2 for $3.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5010825.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5018100-EA-000",
-      "name": "Chocolate Custard 6+ Months",
-      "size": "120g",
-      "brand": "Natureland",
-      "category": "Baby & Toddler Food",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.25,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.25,
-      "score": 80,
-      "promotion": "4 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5018100.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.25
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5018115-EA-000",
-      "name": "Pumpkin Potato With Beef 6+ Months",
-      "size": "120g",
-      "brand": "Natureland",
-      "category": "Baby & Toddler Food",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.25,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.25,
-      "score": 80,
-      "promotion": "4 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5018115.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.25
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5010826-EA-000",
-      "name": "Ready Salted Potato Chips",
-      "size": "150g",
-      "brand": "Eta Ripple Cut",
-      "category": "Chips, Nuts & Snacks",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.5,
-      "regularPrice": 1.89,
-      "average90d": 1.89,
-      "low90d": 1.5,
-      "score": 80,
-      "promotion": "2 for $3.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5010826.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5010827-EA-000",
-      "name": "Salt & Vinegar Potato Chips",
-      "size": "150g",
-      "brand": "Eta Ripple Cut",
-      "category": "Chips, Nuts & Snacks",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.5,
-      "regularPrice": 1.89,
-      "average90d": 1.89,
-      "low90d": 1.5,
-      "score": 80,
-      "promotion": "2 for $3.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5010827.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5010165-EA-000",
-      "name": "Sour Cream & Chives Potato Chips",
-      "size": "150g",
-      "brand": "Eta Ripple Cut",
-      "category": "Chips, Nuts & Snacks",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.5,
-      "regularPrice": 1.89,
-      "average90d": 1.89,
-      "low90d": 1.5,
-      "score": 80,
-      "promotion": "2 for $3.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5010165.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5018102-EA-000",
-      "name": "Vanilla Custard 6+ Months",
-      "size": "120g",
-      "brand": "Natureland",
-      "category": "Baby & Toddler Food",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.25,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.25,
-      "score": 80,
-      "promotion": "4 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5018102.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.25
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5018097-EA-000",
-      "name": "Vegetables & Pasta With Chicken 6+ Months",
-      "size": "120g",
-      "brand": "Natureland",
-      "category": "Baby & Toddler Food",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.25,
-      "regularPrice": 1.59,
-      "average90d": 1.59,
-      "low90d": 1.25,
-      "score": 80,
-      "promotion": "4 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5018097.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.25
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5039956-EA-000",
-      "name": "Broccoli",
-      "size": "ea",
-      "brand": "PAK'nSAVE",
-      "category": "Vegetables",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.5,
-      "regularPrice": 1.79,
-      "average90d": 1.79,
-      "low90d": 1.5,
-      "score": 74,
-      "promotion": "2 for $3.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5039956.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5009910-EA-000",
-      "name": "Classic Loaf With Gourmet Beef Wet Dog Food",
-      "size": "100g",
-      "brand": "My Dog",
-      "category": "Dog",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.5,
-      "regularPrice": 1.79,
-      "average90d": 1.79,
-      "low90d": 1.5,
-      "score": 74,
-      "promotion": "2 for $3.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5009910.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5013718-EA-000",
-      "name": "Classic Loaf With Juicy Lamb Wet Dog Food",
-      "size": "100g",
-      "brand": "My Dog",
-      "category": "Dog",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.5,
-      "regularPrice": 1.79,
-      "average90d": 1.79,
-      "low90d": 1.5,
-      "score": 74,
-      "promotion": "2 for $3.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5013718.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5009911-EA-000",
-      "name": "Classic Loaf With Tender Chicken Wet Dog Food",
-      "size": "100g",
-      "brand": "My Dog",
-      "category": "Dog",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.5,
-      "regularPrice": 1.79,
-      "average90d": 1.79,
-      "low90d": 1.5,
-      "score": 74,
-      "promotion": "2 for $3.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5009911.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5003314-EA-000",
-      "name": "Biscuits",
-      "size": "250g",
-      "brand": "Griffin's Krispie",
-      "category": "Biscuits & Crackers",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.75,
-      "regularPrice": 3.19,
-      "average90d": 3.19,
-      "low90d": 2.75,
-      "score": 72,
-      "promotion": "2 for $5.50",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5003314.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.75
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5003311-EA-000",
-      "name": "Biscuits",
-      "size": "250g",
-      "brand": "Griffin's Malt",
-      "category": "Biscuits & Crackers",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.75,
-      "regularPrice": 3.19,
-      "average90d": 3.19,
-      "low90d": 2.75,
-      "score": 72,
-      "promotion": "2 for $5.50",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5003311.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.75
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5003306-EA-000",
-      "name": "Gingernuts Biscuits",
-      "size": "250g",
-      "brand": "Griffin's",
-      "category": "Biscuits & Crackers",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.75,
-      "regularPrice": 3.19,
-      "average90d": 3.19,
-      "low90d": 2.75,
-      "score": 72,
-      "promotion": "2 for $5.50",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5003306.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.75
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5003307-EA-000",
-      "name": "Milk Arrowroot Biscuits",
-      "size": "250g",
-      "brand": "Griffin's",
-      "category": "Biscuits & Crackers",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.75,
-      "regularPrice": 3.19,
-      "average90d": 3.19,
-      "low90d": 2.75,
-      "score": 72,
-      "promotion": "2 for $5.50",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5003307.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.75
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5003309-EA-000",
-      "name": "Super Wine Biscuits",
-      "size": "250g",
-      "brand": "Griffin's",
-      "category": "Biscuits & Crackers",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.75,
-      "regularPrice": 3.19,
-      "average90d": 3.19,
-      "low90d": 2.75,
-      "score": 72,
-      "promotion": "2 for $5.50",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5003309.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.75
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5003310-EA-000",
-      "name": "Vanilla Wine Biscuits",
-      "size": "250g",
-      "brand": "Griffin's",
-      "category": "Biscuits & Crackers",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.75,
-      "regularPrice": 3.19,
-      "average90d": 3.19,
-      "low90d": 2.75,
-      "score": 72,
-      "promotion": "2 for $5.50",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5003310.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.75
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5039342-EA-000",
-      "name": "Shaved Champagne Leg Ham",
-      "size": "100g",
-      "brand": "Hellers",
-      "category": "Deli Meats & Smoked Fish",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.5,
-      "regularPrice": 2.89,
-      "average90d": 2.89,
-      "low90d": 2.5,
-      "score": 71,
-      "promotion": "2 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5039342.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5015077-EA-000",
-      "name": "Shaved Honey Baked Ham",
-      "size": "100g",
-      "brand": "Hellers",
-      "category": "Deli Meats & Smoked Fish",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.5,
-      "regularPrice": 2.89,
-      "average90d": 2.89,
-      "low90d": 2.5,
-      "score": 71,
-      "promotion": "2 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5015077.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5039343-EA-000",
-      "name": "Shaved Manuka Smoked Ham",
-      "size": "100g",
-      "brand": "Hellers",
-      "category": "Deli Meats & Smoked Fish",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.5,
-      "regularPrice": 2.89,
-      "average90d": 2.89,
-      "low90d": 2.5,
-      "score": 71,
-      "promotion": "2 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5039343.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5039339-EA-000",
-      "name": "Sliced Italian Salami",
-      "size": "100g",
-      "brand": "Hellers",
-      "category": "Deli Meats & Smoked Fish",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.5,
-      "regularPrice": 2.89,
-      "average90d": 2.89,
-      "low90d": 2.5,
-      "score": 71,
-      "promotion": "2 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5039339.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5039340-EA-000",
-      "name": "Sliced Pepperoni Salami",
-      "size": "100g",
-      "brand": "Hellers",
-      "category": "Deli Meats & Smoked Fish",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.5,
-      "regularPrice": 2.89,
-      "average90d": 2.89,
-      "low90d": 2.5,
-      "score": 71,
-      "promotion": "2 for $5.00",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5039340.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5011111-EA-000",
-      "name": "Lite Mayo Shredded Cooked Chicken Breast",
-      "size": "160g",
-      "brand": "Chop Chop",
-      "category": "Canned Foods & Packets",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.75,
-      "regularPrice": 2.99,
-      "average90d": 2.99,
-      "low90d": 2.75,
-      "score": 65,
-      "promotion": "2 for $5.50",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5011111.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.75
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5019148-EA-000",
-      "name": "Teriyaki Pieces Of Cooked Chicken Breast",
-      "size": "160g",
-      "brand": "Chop Chop",
-      "category": "Canned Foods & Packets",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.75,
-      "regularPrice": 2.99,
-      "average90d": 2.99,
-      "low90d": 2.75,
-      "score": 65,
-      "promotion": "2 for $5.50",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5019148.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.75
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5238051-EA-000",
-      "name": "0.0% Alcohol Free Lager Beer Bottles",
-      "size": "12 x 330ml",
-      "brand": "Heineken",
-      "category": "Alcohol Free Drinks",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 23.99,
-      "regularPrice": 23.99,
-      "average90d": 23.99,
-      "low90d": 23.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5238051.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 23.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5026996-EA-000",
-      "name": "100% Cotton Pads",
-      "size": "80pk",
-      "brand": "Protec",
-      "category": "Tissues & Cotton Wool",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.59,
-      "regularPrice": 2.59,
-      "average90d": 2.59,
-      "low90d": 2.59,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5026996.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.59
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5081158-EA-000",
-      "name": "100% NZ Apple Juice",
-      "size": "200ml",
-      "brand": "The Homegrown Juice Company",
-      "category": "Juice & Smoothies",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.29,
-      "regularPrice": 1.29,
-      "average90d": 1.29,
-      "low90d": 1.29,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5081158.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.29
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5081157-EA-000",
-      "name": "100% NZ Orange Juice",
-      "size": "200ml",
-      "brand": "The Homegrown Juice Company",
-      "category": "Juice & Smoothies",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 1.29,
-      "regularPrice": 1.29,
-      "average90d": 1.29,
-      "low90d": 1.29,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5081157.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 1.29
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5236275-EA-000",
-      "name": "3 Gentle Nutrition Toddler  Milk Drink From 12+ Months",
-      "size": "900g",
-      "brand": "Karicare",
-      "category": "Baby Formula",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 19.49,
-      "regularPrice": 19.49,
-      "average90d": 19.49,
-      "low90d": 19.49,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5236275.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 19.49
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5023061-EA-000",
-      "name": "3 Strong Instant Coffee Refill",
-      "size": "90g",
-      "brand": "Jed's Coffee Co.",
-      "category": "Coffee",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 7.49,
-      "regularPrice": 7.49,
-      "average90d": 7.49,
-      "low90d": 7.49,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5023061.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 7.49
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5016798-EA-000",
-      "name": "3 Strong Plunger Coffee",
-      "size": "200g",
-      "brand": "Jed's Coffee Co.",
-      "category": "Coffee",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 7.49,
-      "regularPrice": 7.49,
-      "average90d": 7.49,
-      "low90d": 7.49,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5016798.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 7.49
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5004700-EA-000",
-      "name": "33 Super Crisp Lager Bottles",
-      "size": "12 x 330ml",
-      "brand": "DB Export",
-      "category": "Beer",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 24.49,
-      "regularPrice": 24.49,
-      "average90d": 24.49,
-      "low90d": 24.49,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5004700.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 24.49
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5009255-EA-000",
-      "name": "360 Deep Clean Medium Toothbrush",
-      "size": "1pk",
-      "brand": "Colgate",
-      "category": "Dental & Oral Care",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 3.99,
-      "regularPrice": 3.99,
-      "average90d": 3.99,
-      "low90d": 3.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5009255.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 3.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5018355-EA-000",
-      "name": "4 Very Strong Coffee Beans",
-      "size": "200g",
-      "brand": "Jed's Coffee Co.",
-      "category": "Coffee",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 7.49,
-      "regularPrice": 7.49,
-      "average90d": 7.49,
-      "low90d": 7.49,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5018355.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 7.49
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5019619-EA-000",
-      "name": "4 Very Strong Espresso Grind Coffee",
-      "size": "200g",
-      "brand": "Jed's Coffee Co.",
-      "category": "Coffee",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 7.49,
-      "regularPrice": 7.49,
-      "average90d": 7.49,
-      "low90d": 7.49,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5019619.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 7.49
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5023060-EA-000",
-      "name": "4 Very Strong Instant Coffee Refill",
-      "size": "90g",
-      "brand": "Jed's Coffee Co.",
-      "category": "Coffee",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 7.49,
-      "regularPrice": 7.49,
-      "average90d": 7.49,
-      "low90d": 7.49,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5023060.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 7.49
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5018352-EA-000",
-      "name": "4 Very Strong Plunger Coffee",
-      "size": "200g",
-      "brand": "Jed's Coffee Co.",
-      "category": "Coffee",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 7.49,
-      "regularPrice": 7.49,
-      "average90d": 7.49,
-      "low90d": 7.49,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5018352.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 7.49
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5019632-EA-000",
-      "name": "5 Extra Strong Coffee Beans",
-      "size": "200g",
-      "brand": "Jed's Coffee Co.",
-      "category": "Coffee",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 7.49,
-      "regularPrice": 7.49,
-      "average90d": 7.49,
-      "low90d": 7.49,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5019632.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 7.49
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5037998-EA-000",
-      "name": "5 Extra Strong Instant Coffee Refill",
-      "size": "90g",
-      "brand": "Jed's Coffee Co.",
-      "category": "Coffee",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 7.49,
-      "regularPrice": 7.49,
-      "average90d": 7.49,
-      "low90d": 7.49,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5037998.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 7.49
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5100095-EA-000",
-      "name": "5th Generation Shiraz",
-      "size": "750ml",
-      "brand": "Grant Burge",
-      "category": "Red Wine",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 13.99,
-      "regularPrice": 13.99,
-      "average90d": 13.99,
-      "low90d": 13.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5100095.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 13.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5249647-EA-000",
-      "name": "70% Cocoa Chocolate Block",
-      "size": "165g",
-      "brand": "Cadbury",
-      "category": "Chocolate, Sweets & Chewing Gum",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 3.29,
-      "regularPrice": 3.29,
-      "average90d": 3.29,
-      "low90d": 3.29,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5249647.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 3.29
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5260349-EA-000",
-      "name": "750ml Coloured Container & Lid Set",
-      "size": "10pk",
-      "brand": "Qiwi",
-      "category": "Food Wrap, Storage & Bags",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 5,
-      "regularPrice": 5,
-      "average90d": 5,
-      "low90d": 5,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5260349.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 5
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5028499-EA-000",
-      "name": "8.6 Original Intense Blond Beer Cans",
-      "size": "4 x 500ml",
-      "brand": "Bavaria",
-      "category": "Beer",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 15.99,
-      "regularPrice": 15.99,
-      "average90d": 15.99,
-      "low90d": 15.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5028499.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 15.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5009687-EA-000",
-      "name": "9 Grains Crispbread",
-      "size": "250g",
-      "brand": "Arnott's Vita-Weat",
-      "category": "Biscuits & Crackers",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.99,
-      "regularPrice": 2.99,
-      "average90d": 2.99,
-      "low90d": 2.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5009687.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5275756-EA-000",
-      "name": "98% Sugar Free Caramel Latte Coffee Sachets",
-      "size": "10pk",
-      "brand": "Nescafe",
-      "category": "Coffee",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 4.99,
-      "regularPrice": 4.99,
-      "average90d": 4.99,
-      "low90d": 4.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5275756.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 4.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5086492-EA-000",
-      "name": "Active Clean Laundry Powder",
-      "size": "1kg",
-      "brand": "Persil",
-      "category": "Laundry",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 7.49,
-      "regularPrice": 7.49,
-      "average90d": 7.49,
-      "low90d": 7.49,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5086492.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 7.49
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5035434-EA-000",
-      "name": "Active Nourishment Aloe Vera Conditioner",
-      "size": "350ml",
-      "brand": "Palmolive Naturals",
-      "category": "Hair Care",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 3.99,
-      "regularPrice": 3.99,
-      "average90d": 3.99,
-      "low90d": 3.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5035434.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 3.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5035426-EA-000",
-      "name": "Active Nourishment Aloe Vera Hair Shampoo",
-      "size": "350ml",
-      "brand": "Palmolive Naturals",
-      "category": "Hair Care",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 3.99,
-      "regularPrice": 3.99,
-      "average90d": 3.99,
-      "low90d": 3.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5035426.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 3.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5213282-EA-000",
-      "name": "Addictive Brilliant Shine Conditioner",
-      "size": "700ml",
-      "brand": "Sunsilk",
-      "category": "Hair Care",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 6.99,
-      "regularPrice": 6.99,
-      "average90d": 6.99,
-      "low90d": 6.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5213282.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 6.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5213280-EA-000",
-      "name": "Addictive Brilliant Shine Shampoo",
-      "size": "700ml",
-      "brand": "Sunsilk",
-      "category": "Hair Care",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 6.99,
-      "regularPrice": 6.99,
-      "average90d": 6.99,
-      "low90d": 6.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5213280.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 6.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5013846-EA-000",
-      "name": "Adult 1-7 Years With Real Beef Dry Dog Food",
-      "size": "3kg",
-      "brand": "Pedigree",
-      "category": "Dog",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 11.99,
-      "regularPrice": 11.99,
-      "average90d": 11.99,
-      "low90d": 11.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5013846.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 11.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5014451-EA-000",
-      "name": "Adult 1-7 Years With Real Chicken Dry Dog Food",
-      "size": "3kg",
-      "brand": "Pedigree",
-      "category": "Dog",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 11.99,
-      "regularPrice": 11.99,
-      "average90d": 11.99,
-      "low90d": 11.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5014451.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 11.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5266635-EA-000",
-      "name": "Advanced Protection All Blacks 72Hr Antiperspirant Deodorant",
-      "size": "220ml",
-      "brand": "Rexona Men",
-      "category": "Deodorant & Body Sprays",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 5.99,
-      "regularPrice": 5.99,
-      "average90d": 5.99,
-      "low90d": 5.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5266635.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 5.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5266634-EA-000",
-      "name": "Advanced Protection Bright Bouquet 72Hr Antiperspirant Deodorant",
-      "size": "220ml",
-      "brand": "Rexona",
-      "category": "Deodorant & Body Sprays",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 5.99,
-      "regularPrice": 5.99,
-      "average90d": 5.99,
-      "low90d": 5.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5266634.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 5.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5266638-EA-000",
-      "name": "Advanced Protection Invisible Dry Pure 72Hr Antiperspirant Deodorant",
-      "size": "220ml",
-      "brand": "Rexona",
-      "category": "Deodorant & Body Sprays",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 5.99,
-      "regularPrice": 5.99,
-      "average90d": 5.99,
-      "low90d": 5.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5266638.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 5.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5266624-EA-000",
-      "name": "Advanced Protection Original 72Hr Antiperspirant Deodorant",
-      "size": "220ml",
-      "brand": "Rexona Men",
-      "category": "Deodorant & Body Sprays",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 5.99,
-      "regularPrice": 5.99,
-      "average90d": 5.99,
-      "low90d": 5.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5266624.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 5.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5266639-EA-000",
-      "name": "Advanced Protection Shower Fresh 72Hr Antiperspirant Deodorant",
-      "size": "220ml",
-      "brand": "Rexona",
-      "category": "Deodorant & Body Sprays",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 5.99,
-      "regularPrice": 5.99,
-      "average90d": 5.99,
-      "low90d": 5.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5266639.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 5.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5266629-EA-000",
-      "name": "Advanced Protection Sport 72Hr Antiperspirant Deodorant",
-      "size": "220ml",
-      "brand": "Rexona Men",
-      "category": "Deodorant & Body Sprays",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 5.99,
-      "regularPrice": 5.99,
-      "average90d": 5.99,
-      "low90d": 5.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5266629.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 5.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5266630-EA-000",
-      "name": "Advanced Protection Workout 72Hr Antiperspirant Deodorant",
-      "size": "220ml",
-      "brand": "Rexona Men",
-      "category": "Deodorant & Body Sprays",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 5.99,
-      "regularPrice": 5.99,
-      "average90d": 5.99,
-      "low90d": 5.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5266630.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 5.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5031074-EA-000",
-      "name": "Affinity Pinot Gris",
-      "size": "750ml",
-      "brand": "Montana",
-      "category": "White Wine",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 10.99,
-      "regularPrice": 10.99,
-      "average90d": 10.99,
-      "low90d": 10.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5031074.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 10.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5031078-EA-000",
-      "name": "Affinity Sauvignon Blanc",
-      "size": "750ml",
-      "brand": "Montana",
-      "category": "White Wine",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 10.99,
-      "regularPrice": 10.99,
-      "average90d": 10.99,
-      "low90d": 10.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5031078.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 10.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5278901-EA-000",
-      "name": "Agria Crinkle Fries",
-      "size": "900g",
-      "brand": "Mr Chips",
-      "category": "Frozen Chips & Hash Browns",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 3.49,
-      "regularPrice": 3.49,
-      "average90d": 3.49,
-      "low90d": 3.49,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5278901.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 3.49
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5009653-EA-000",
-      "name": "Almond Gold 33% Cocoa Milk Chocolate Block",
-      "size": "250g",
-      "brand": "Whittaker's",
-      "category": "Chocolate, Sweets & Chewing Gum",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 6.59,
-      "regularPrice": 6.59,
-      "average90d": 6.59,
-      "low90d": 6.59,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5009653.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 6.59
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5009900-EA-000",
-      "name": "Almond Ice Cream",
-      "size": "400ml",
-      "brand": "Magnum",
-      "category": "Ice Cream & Sorbet",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 8.49,
-      "regularPrice": 8.49,
-      "average90d": 8.49,
-      "low90d": 8.49,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5009900.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 8.49
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5010768-EA-000",
-      "name": "Aloe Vera & Chamomile Hand Wash Refill",
-      "size": "500ml",
-      "brand": "Palmolive",
-      "category": "Bath, Shower & Soap",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 4.29,
-      "regularPrice": 4.29,
-      "average90d": 4.29,
-      "low90d": 4.29,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5010768.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 4.29
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5012372-EA-000",
-      "name": "Aloe Vera & Vitamin E Liquid Hand Wash Pump",
-      "size": "250ml",
-      "brand": "Dettol",
-      "category": "Bath, Shower & Soap",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 2.99,
-      "regularPrice": 2.99,
-      "average90d": 2.99,
-      "low90d": 2.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5012372.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 2.99
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5011518-EA-000",
-      "name": "Anti-Dandruff  Replenishing Shampoo",
-      "size": "200ml",
-      "brand": "Selsun",
-      "category": "Hair Care",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 8.49,
-      "regularPrice": 8.49,
-      "average90d": 8.49,
-      "low90d": 8.49,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5011518.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 8.49
-        }
-      ]
-    },
-    {
-      "id": "paknsave-5035419-EA-000",
-      "name": "Anti-Dandruff Tea Tree & Eucalyptus 2 In 1 Hair Shampoo & Hair Conditioner",
-      "size": "350ml",
-      "brand": "Palmolive Naturals",
-      "category": "Hair Care",
-      "retailer": "PAK'nSAVE",
-      "store": "PAK'nSAVE Royal Oak",
-      "price": 3.99,
-      "regularPrice": 3.99,
-      "average90d": 3.99,
-      "low90d": 3.99,
-      "score": 55,
-      "promotion": "PAK'nSAVE Extra Low",
-      "memberOnly": false,
-      "imageUrl": "https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5035419.png",
-      "color": "#f4b942",
-      "history": [
-        {
-          "date": "03 Sept",
-          "price": 3.99
+          "date": "04 Sept",
+          "price": 3.7
         }
       ]
     }

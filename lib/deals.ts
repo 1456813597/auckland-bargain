@@ -1,3 +1,5 @@
+import { multiBuyOffer } from '@/lib/retailer-pricing';
+
 export type Retailer = string;
 export type Category = string;
 
@@ -44,6 +46,13 @@ export const retailers = ["All retailers", "PAK’nSAVE", "New World", "Woolwort
 
 export const money = new Intl.NumberFormat("en-NZ", { style: "currency", currency: "NZD" });
 
+export function dealOfferPrice(deal: Pick<Deal, 'price' | 'promotion'>) {
+  const multiBuy = multiBuyOffer(deal.promotion);
+  return multiBuy ? multiBuy.unitPriceCents / 100 : deal.price;
+}
+
 export function discountPercent(deal: Deal) {
-  return Math.round(((deal.average90d - deal.price) / deal.average90d) * 100);
+  return Math.round(
+    ((deal.average90d - dealOfferPrice(deal)) / deal.average90d) * 100,
+  );
 }

@@ -56,11 +56,14 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from '@/components/ui/native-select';
-import { discountPercent, money, type Deal } from '@/lib/deals';
+import { dealOfferPrice, discountPercent, money, type Deal } from '@/lib/deals';
+import { isMultiBuyPromotion, multiBuyOffer } from '@/lib/retailer-pricing';
 
 type CategoryFilter = string;
 type RetailerFilter = string;
 type SortMode = 'score' | 'saving' | 'price';
+
+const ALL_RETAILERS = 'All supermarkets';
 
 export type DealsMeta = {
   demo: boolean;
@@ -120,6 +123,7 @@ function DealCard({
 }) {
   const saving = discountPercent(deal);
   const logo = retailerLogo(deal.retailer);
+  const multiBuy = multiBuyOffer(deal.promotion);
   const imageIsStoredInBlob = deal.imageUrl?.includes(
     '.public.blob.vercel-storage.com/',
   );
@@ -182,6 +186,12 @@ function DealCard({
               <strong className="font-heading text-4xl tracking-[-0.055em] text-white">
                 {money.format(deal.price)}
               </strong>
+              {multiBuy && (
+                <p className="mt-0.5 text-[11px] font-semibold text-[#ffd36a]">
+                  Single item · {money.format(multiBuy.unitPriceCents / 100)} ea
+                  when buying {multiBuy.quantity}
+                </p>
+              )}
               <p className="mt-1 text-xs text-white/68">
                 90-day avg {money.format(deal.average90d)}
               </p>
@@ -226,6 +236,7 @@ function DealDetail({
 }) {
   if (!deal) return null;
   const saving = discountPercent(deal);
+  const hasMultiBuy = isMultiBuyPromotion(deal.promotion);
 
   return (
     <Dialog open={Boolean(deal)} onOpenChange={(open) => !open && onClose()}>
@@ -236,6 +247,7 @@ function DealDetail({
               Deal score {deal.score}
             </Badge>
             {deal.memberOnly && <Badge variant="outline">Member price</Badge>}
+            {hasMultiBuy && <Badge variant="outline">Multibuy available</Badge>}
           </div>
           <DialogTitle className="mt-2 text-2xl font-bold tracking-tight">
             {deal.name}
@@ -248,7 +260,7 @@ function DealDetail({
         <div className="p-5">
           <div className="grid grid-cols-3 gap-px overflow-hidden rounded-xl bg-foreground/10 ring-1 ring-foreground/10">
             {[
-              ['Today', money.format(deal.price)],
+              [hasMultiBuy ? 'Single item' : 'Today', money.format(deal.price)],
               ['90-day avg', money.format(deal.average90d)],
               ['90-day low', money.format(deal.low90d)],
             ].map(([label, value]) => (
@@ -262,6 +274,12 @@ function DealDetail({
               </div>
             ))}
           </div>
+          {hasMultiBuy && (
+            <p className="mt-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs leading-5 text-foreground/75">
+              {deal.promotion}. The price above is what one item costs when the
+              multibuy threshold is not met.
+            </p>
+          )}
 
           <div className="mt-6 flex items-center justify-between">
             <div>
@@ -353,7 +371,7 @@ export default function DealsDashboard({
   const [dataMeta, setDataMeta] = useState<DealsMeta>(initialPayload.meta);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<CategoryFilter>('All');
-  const [retailer, setRetailer] = useState<RetailerFilter>('All retailers');
+  const [retailer, setRetailer] = useState<RetailerFilter>(ALL_RETAILERS);
   const [sort, setSort] = useState<SortMode>('score');
   const [memberPrices, setMemberPrices] = useState(true);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
@@ -383,13 +401,21 @@ export default function DealsDashboard({
     }
   };
 
+  const retailerOptions = useMemo(
+    () => [...new Set(deals.map((deal) => deal.retailer))],
+    [deals],
+  );
+  const scopedDeals = useMemo(
+    () =>
+      retailer === ALL_RETAILERS
+        ? deals
+        : deals.filter((deal) => deal.retailer === retailer),
+    [deals, retailer],
+  );
   const visibleDeals = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return deals
+    return scopedDeals
       .filter((deal) => category === 'All' || deal.category === category)
-      .filter(
-        (deal) => retailer === 'All retailers' || deal.retailer === retailer,
-      )
       .filter((deal) => memberPrices || !deal.memberOnly)
       .filter(
         (deal) =>
@@ -403,20 +429,40 @@ export default function DealsDashboard({
         if (sort === 'saving') return discountPercent(b) - discountPercent(a);
         return b.score - a.score;
       });
-  }, [category, deals, memberPrices, query, retailer, sort]);
+  }, [category, memberPrices, query, scopedDeals, sort]);
 
   const categoryOptions = useMemo(
-    () => ['All', ...new Set(deals.map((deal) => deal.category))],
-    [deals],
+    () => ['All', ...new Set(scopedDeals.map((deal) => deal.category))],
+    [scopedDeals],
   );
-  const retailerOptions = useMemo(
-    () => ['All retailers', ...new Set(deals.map((deal) => deal.retailer))],
-    [deals],
+  const retailerCounts = useMemo(
+    () =>
+      new Map(
+        retailerOptions.map((option) => [
+          option,
+          deals.filter((deal) => deal.retailer === option).length,
+        ]),
+      ),
+    [deals, retailerOptions],
   );
-  const standout = deals[0];
-  const storeCount = new Set(deals.map((deal) => deal.store)).size;
-  const possibleSaving = deals.reduce(
-    (total, deal) => total + Math.max(0, deal.regularPrice - deal.price),
+  const groupedDeals = useMemo(
+    () =>
+      retailerOptions
+        .map((option) => ({
+          retailer: option,
+          deals: visibleDeals.filter((deal) => deal.retailer === option),
+        }))
+        .filter((group) => group.deals.length > 0),
+    [retailerOptions, visibleDeals],
+  );
+  const standout = scopedDeals.reduce<Deal | undefined>(
+    (best, deal) => (!best || deal.score > best.score ? deal : best),
+    undefined,
+  );
+  const storeCount = new Set(scopedDeals.map((deal) => deal.store)).size;
+  const possibleSaving = scopedDeals.reduce(
+    (total, deal) =>
+      total + Math.max(0, deal.regularPrice - dealOfferPrice(deal)),
     0,
   );
   const updatedLabel = dataMeta.updatedAt
@@ -440,8 +486,14 @@ export default function DealsDashboard({
   const resetFilters = () => {
     setQuery('');
     setCategory('All');
-    setRetailer('All retailers');
+    setRetailer(ALL_RETAILERS);
     setMemberPrices(true);
+  };
+
+  const chooseRetailer = (nextRetailer: RetailerFilter) => {
+    setRetailer(nextRetailer);
+    setCategory('All');
+    setSelectedDeal(null);
   };
 
   return (
@@ -533,6 +585,44 @@ export default function DealsDashboard({
           </div>
         </section>
 
+        <fieldset className="mt-6 rounded-[1.35rem] border border-foreground/10 bg-card p-4 sm:p-5">
+          <legend className="px-1 font-heading text-base font-bold tracking-tight">
+            Choose a supermarket
+          </legend>
+          <p className="mb-3 px-1 text-xs leading-5 text-muted-foreground">
+            Prices, rankings and savings update to match your selection.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={retailer === ALL_RETAILERS ? 'default' : 'outline'}
+              className="min-h-11 rounded-xl px-4"
+              aria-pressed={retailer === ALL_RETAILERS}
+              onClick={() => chooseRetailer(ALL_RETAILERS)}
+            >
+              <Store data-icon="inline-start" /> All supermarkets
+              <span className="font-mono text-xs opacity-70">
+                {deals.length}
+              </span>
+            </Button>
+            {retailerOptions.map((option) => (
+              <Button
+                key={option}
+                type="button"
+                variant={retailer === option ? 'default' : 'outline'}
+                className="min-h-11 rounded-xl px-4"
+                aria-pressed={retailer === option}
+                onClick={() => chooseRetailer(option)}
+              >
+                {option}
+                <span className="font-mono text-xs opacity-70">
+                  {retailerCounts.get(option) ?? 0}
+                </span>
+              </Button>
+            ))}
+          </div>
+        </fieldset>
+
         <section className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
           <div className="relative isolate min-h-64 overflow-hidden rounded-[1.7rem] bg-primary p-6 text-primary-foreground sm:p-8">
             <Image
@@ -564,6 +654,11 @@ export default function DealsDashboard({
                     <TrendingDown className="size-4 text-[#f4b942]" />{' '}
                     {discountPercent(standout)}% below its 90-day average
                   </p>
+                  {isMultiBuyPromotion(standout.promotion) && (
+                    <p className="mt-2 text-xs text-primary-foreground/72">
+                      Single-item price · {standout.promotion}
+                    </p>
+                  )}
                   <Button
                     variant="secondary"
                     className="mt-6 bg-background text-foreground hover:bg-background/90"
@@ -581,9 +676,16 @@ export default function DealsDashboard({
           </div>
           <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[1.7rem] border border-foreground/10 bg-foreground/10">
             {[
-              [String(deals.length), 'strong deals today'],
+              [String(scopedDeals.length), 'strong deals today'],
               [money.format(possibleSaving), 'possible basket saving'],
-              [String(retailerOptions.length - 1), 'retailers compared'],
+              [
+                retailer === ALL_RETAILERS
+                  ? String(retailerOptions.length)
+                  : '1',
+                retailer === ALL_RETAILERS
+                  ? 'retailers compared'
+                  : 'selected retailer',
+              ],
               [String(storeCount), 'Auckland stores'],
             ].map(([value, label]) => (
               <div key={label} className="bg-card p-5 sm:p-6">
@@ -622,23 +724,6 @@ export default function DealsDashboard({
                 prices
               </Button>
               <div className="relative">
-                <Store className="pointer-events-none absolute left-2.5 top-1/2 z-10 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                <NativeSelect
-                  value={retailer}
-                  onChange={(event) =>
-                    setRetailer(event.target.value as RetailerFilter)
-                  }
-                  className="bg-card [&_select]:pl-8"
-                  aria-label="Filter by retailer"
-                >
-                  {retailerOptions.map((item) => (
-                    <NativeSelectOption key={item} value={item}>
-                      {item}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </div>
-              <div className="relative">
                 <SlidersHorizontal className="pointer-events-none absolute left-2.5 top-1/2 z-10 size-3.5 -translate-y-1/2 text-muted-foreground" />
                 <NativeSelect
                   value={sort}
@@ -660,7 +745,7 @@ export default function DealsDashboard({
             </div>
           </div>
 
-          <fieldset className="mt-5 flex min-w-0 max-w-full gap-2 overflow-x-auto pb-2">
+          <fieldset className="mt-5 flex min-w-0 max-w-full flex-wrap gap-2 pb-2">
             <legend className="sr-only">Filter by category</legend>
             {categoryOptions.map((item) => (
               <Button
@@ -669,6 +754,7 @@ export default function DealsDashboard({
                 variant={category === item ? 'default' : 'outline'}
                 className="shrink-0 rounded-full px-3.5"
                 onClick={() => setCategory(item as CategoryFilter)}
+                aria-pressed={category === item}
               >
                 {item}
               </Button>
@@ -683,10 +769,58 @@ export default function DealsDashboard({
           </div>
 
           {visibleDeals.length ? (
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {visibleDeals.map((deal) => (
-                <DealCard key={deal.id} deal={deal} onOpen={setSelectedDeal} />
-              ))}
+            <div className="mt-4 space-y-9">
+              {groupedDeals.map((group) => {
+                const logo = retailerLogo(group.retailer);
+                const headingId = `retailer-${group.retailer
+                  .toLocaleLowerCase('en-NZ')
+                  .replaceAll(/[^a-z0-9]+/g, '-')}`;
+                const stores = [
+                  ...new Set(group.deals.map((deal) => deal.store)),
+                ];
+
+                return (
+                  <section key={group.retailer} aria-labelledby={headingId}>
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-foreground/10 pb-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="grid h-10 w-28 shrink-0 place-items-center rounded-xl border border-foreground/10 bg-white px-3">
+                          <Image
+                            src={logo.src}
+                            alt=""
+                            width={logo.width}
+                            height={logo.height}
+                            unoptimized
+                            className="max-h-7 w-auto object-contain"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <h3
+                            id={headingId}
+                            className="font-heading text-lg font-bold tracking-tight"
+                          >
+                            {group.retailer}
+                          </h3>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {stores.join(' · ')}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {group.deals.length} deals
+                      </span>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      {group.deals.map((deal) => (
+                        <DealCard
+                          key={deal.id}
+                          deal={deal}
+                          onOpen={setSelectedDeal}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
             </div>
           ) : (
             <Empty className="mt-6 min-h-64 border border-foreground/15 bg-card">

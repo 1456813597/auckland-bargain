@@ -10,6 +10,7 @@ import {
   WOOLWORTHS_MIN_ADVERTISED_DISCOUNT,
 } from '@/lib/deal-quality';
 import type { Deal, PricePoint } from '@/lib/deals';
+import { shopperFacingPriceCents } from '@/lib/retailer-pricing';
 
 type CurrentDealRow = {
   offer_id: number;
@@ -35,7 +36,9 @@ type CurrentDealRow = {
 type HistoryRow = {
   retailer_product_id: number;
   store_id: number;
+  regular_price_cents: number | null;
   effective_price_cents: number;
+  promotion_text: string | null;
   observed_at: string;
 };
 
@@ -47,12 +50,19 @@ const dateLabel = new Intl.DateTimeFormat('en-NZ', {
 
 function historyPoints(
   history: HistoryRow[],
+  retailerSlug: string,
   currentPriceCents: number,
   collectedAt: string,
 ): PricePoint[] {
   const points = history.map((point) => ({
     date: dateLabel.format(new Date(point.observed_at)),
-    price: point.effective_price_cents / 100,
+    price:
+      shopperFacingPriceCents({
+        retailerSlug,
+        promotionText: point.promotion_text,
+        regularPriceCents: point.regular_price_cents,
+        effectivePriceCents: point.effective_price_cents,
+      }) / 100,
   }));
 
   if (points.length === 0) {
@@ -112,7 +122,7 @@ export async function getCurrentDeals() {
       supabase
         .from('offer_history')
         .select(
-          'retailer_product_id,store_id,effective_price_cents,observed_at',
+          'retailer_product_id,store_id,regular_price_cents,effective_price_cents,promotion_text,observed_at',
         )
         .in('retailer_product_id', batch)
         .gte('observed_at', cutoff.toISOString())
@@ -136,9 +146,16 @@ export async function getCurrentDeals() {
   }
 
   const deals = rows.map((row): Deal => {
+    const currentPriceCents = shopperFacingPriceCents({
+      retailerSlug: row.retailer_slug,
+      promotionText: row.promotion_text,
+      regularPriceCents: row.regular_price_cents,
+      effectivePriceCents: row.effective_price_cents,
+    });
     const history = historyPoints(
       historyByOffer.get(`${row.retailer_product_id}:${row.store_id}`) ?? [],
-      row.effective_price_cents,
+      row.retailer_slug,
+      currentPriceCents,
       row.collected_at,
     );
     const historicalPrices = history.map((point) => point.price);
@@ -157,10 +174,10 @@ export async function getCurrentDeals() {
       category: row.category ?? 'Other',
       retailer: row.retailer_name,
       store: row.store_name,
-      price: row.effective_price_cents / 100,
+      price: currentPriceCents / 100,
       regularPrice,
       average90d,
-      low90d: Math.min(...historicalPrices, row.effective_price_cents / 100),
+      low90d: Math.min(...historicalPrices, currentPriceCents / 100),
       score: 0,
       promotion:
         row.promotion_text ??

@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { PaknsaveCollector, toPaknsaveOffer } from '../lib/collectors/paknsave';
+import {
+  multiBuyOffer,
+  shopperFacingPriceCents,
+} from '../lib/retailer-pricing';
 
 const collectedAt = new Date('2026-08-31T10:00:00.000Z');
 
@@ -40,7 +44,7 @@ describe('toPaknsaveOffer', () => {
     assert.match(offer.sourceUrl, /5009651_ea_000pns$/);
   });
 
-  it('normalizes a multibuy total to its per-item promo price', () => {
+  it('keeps the single-item price when a multibuy threshold is not met', () => {
     const offer = toPaknsaveOffer(
       {
         productId: '5039956-EA-000',
@@ -55,7 +59,7 @@ describe('toPaknsaveOffer', () => {
 
     assert.ok(offer);
     assert.equal(offer.regularPriceCents, 179);
-    assert.equal(offer.promoPriceCents, 150);
+    assert.equal(offer.promoPriceCents, 179);
     assert.equal(offer.promotionText, '2 for $3.00');
   });
 
@@ -99,12 +103,55 @@ describe('toPaknsaveOffer', () => {
 
     assert.ok(offer);
     assert.equal(offer.regularPriceCents, 179);
-    assert.equal(offer.promoPriceCents, 150);
+    assert.equal(offer.promoPriceCents, 179);
     assert.equal(offer.promotionText, '2 for $3.00');
     assert.equal(offer.category, 'Fresh');
     assert.equal(
       offer.imageUrl,
       'https://a.fsimg.co.nz/prod/product/retail/fan/image/500x500/5039956.png',
+    );
+  });
+});
+
+describe("shopper-facing PAK'nSAVE prices", () => {
+  it('keeps the conditional multibuy unit price available for deal scoring', () => {
+    assert.deepEqual(multiBuyOffer('3 for $5.00'), {
+      quantity: 3,
+      totalPriceCents: 500,
+      unitPriceCents: 167,
+    });
+  });
+
+  it('repairs previously stored per-item multibuy prices at read time', () => {
+    assert.equal(
+      shopperFacingPriceCents({
+        retailerSlug: 'paknsave',
+        promotionText: '3 for $5.00',
+        regularPriceCents: 269,
+        effectivePriceCents: 167,
+      }),
+      269,
+    );
+  });
+
+  it('does not change ordinary or other-retailer prices', () => {
+    assert.equal(
+      shopperFacingPriceCents({
+        retailerSlug: 'paknsave',
+        promotionText: "PAK'nSAVE Extra Low",
+        regularPriceCents: 659,
+        effectivePriceCents: 659,
+      }),
+      659,
+    );
+    assert.equal(
+      shopperFacingPriceCents({
+        retailerSlug: 'woolworths',
+        promotionText: '3 for $5.00',
+        regularPriceCents: 269,
+        effectivePriceCents: 167,
+      }),
+      167,
     );
   });
 });
