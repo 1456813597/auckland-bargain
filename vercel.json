@@ -5,6 +5,10 @@
   "regions": ["syd1"],
   "crons": [
     {
+      "path": "/api/cron/collect",
+      "schedule": "0 * * * *"
+    },
+    {
       "path": "/api/cron/woolworths",
       "schedule": "10 16 * * 0"
     },

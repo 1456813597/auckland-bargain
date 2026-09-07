@@ -202,3 +202,103 @@ export async function processOneCollectionJob(
     return { ...identity, status, error: message };
   }
 }
+
+export type CollectionJobOutcome = Awaited<
+  ReturnType<typeof processOneCollectionJob>
+>;
+
+// One scheduled invocation must not try to collect a national registry: it is
+// bounded by both a job count and a claim deadline that leaves the platform's
+// remaining time to the job already in flight. Anything still queued, plus any
+// job killed mid-flight, is picked up by the next invocation once the database
+// lease reaper releases it.
+export const collectionDrainDefaults = {
+  limit: 3,
+  maxLimit: 10,
+  claimDeadlineMs: 120_000,
+} as const;
+
+export function parseDrainLimit(value: string | null) {
+  if (value === null) return collectionDrainDefaults.limit;
+  // Reject anything that is not exactly an integer rather than silently
+  // reinterpreting "2.5" or "3 stores" as a different amount of collection.
+  const parsed = /^\d+$/.test(value) ? Number(value) : Number.NaN;
+  if (
+    !Number.isSafeInteger(parsed) ||
+    parsed < 1 ||
+    parsed > collectionDrainDefaults.maxLimit
+  )
+    throw new Error(
+      `Limit must be between 1 and ${collectionDrainDefaults.maxLimit}.`,
+    );
+  return parsed;
+}
+
+export async function drainCollectionQueue(
+  options: {
+    database?: QueueDatabase;
+    environment?: Record<string, string | undefined>;
+    retailer?: RegisteredRetailer;
+    limit?: number;
+    claimDeadlineMs?: number;
+    now?: () => number;
+    process?: typeof processOneCollectionJob;
+  } = {},
+) {
+  const database = options.database ?? getSupabaseAdmin();
+  const limit = options.limit ?? collectionDrainDefaults.limit;
+  const claimDeadlineMs =
+    options.claimDeadlineMs ?? collectionDrainDefaults.claimDeadlineMs;
+  const now = options.now ?? Date.now;
+  const startedAt = now();
+  const runJob = options.process ?? processOneCollectionJob;
+  // Enqueueing is idempotent per store, scope and NZ week, so repeated
+  // invocations through the week only add newly eligible stores.
+  const enqueued = await enqueueWeeklyCollections(database, options.retailer);
+  const processed: CollectionJobOutcome[] = [];
+  let stoppedBy: 'limit' | 'deadline' | 'idle' | 'error' = 'limit';
+  let error: string | undefined;
+  while (processed.length < limit) {
+    if (now() - startedAt >= claimDeadlineMs) {
+      stoppedBy = 'deadline';
+      break;
+    }
+    let outcome: CollectionJobOutcome;
+    try {
+      outcome = await runJob({
+        database,
+        environment: options.environment,
+        retailer: options.retailer,
+      });
+    } catch (cause) {
+      // A queue protocol failure stops this invocation instead of spinning, and
+      // never discards the outcomes already committed by earlier jobs.
+      stoppedBy = 'error';
+      error = cause instanceof Error ? cause.message : 'Queue request failed.';
+      break;
+    }
+    if (outcome.status === 'idle') {
+      stoppedBy = 'idle';
+      break;
+    }
+    processed.push(outcome);
+  }
+  let queue: unknown;
+  try {
+    queue = await getCollectionQueueStatus(database);
+  } catch (cause) {
+    queue = {
+      error: cause instanceof Error ? cause.message : 'Queue status failed.',
+    };
+  }
+  return {
+    ok:
+      error === undefined &&
+      processed.every((outcome) => outcome.status === 'succeeded'),
+    enqueued,
+    processed,
+    stoppedBy,
+    queue,
+    ...(error ? { error } : {}),
+  };
+}

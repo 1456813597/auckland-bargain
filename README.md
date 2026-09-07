@@ -62,8 +62,21 @@ is never silently merged below the automatic threshold.
 
 ## Weekly collection and retention
 
-`vercel.json` defines six protected weekly production jobs every Sunday UTC,
-which is Monday morning in Auckland:
+`/api/cron/collect` runs hourly and is the registry-driven path. Each invocation
+enqueues this NZ week's jobs for every `collection_targets` row whose recorded
+source permission is approved, unexpired and enabled, then claims at most three
+of them (`?limit=` up to 10, `?retailer=` to narrow a banner). It stops claiming
+after 120 seconds so the job already in flight keeps the rest of the function's
+300-second budget; whatever is left stays queued for the next hour. Enqueueing is
+idempotent per store, scope and NZ week, so the repeated invocations exist to
+land backed-off retries inside the same week, not to collect more often. With the
+default limit that is up to 504 store-jobs a week. An invocation with nothing
+eligible costs three database calls and contacts no supermarket — which is the
+current state, because every bundled registry entry is `access.status: pending`.
+
+`vercel.json` also keeps six protected weekly production jobs every Sunday UTC,
+which is Monday morning in Auckland. These are the legacy environment-selected
+single-store routes; they do **not** read the registry or its access gate:
 
 - `/api/cron/woolworths` at `16:10 UTC`
 - `/api/cron/supermarkets?retailer=paknsave` at `17:20 UTC`
@@ -75,7 +88,10 @@ which is Monday morning in Auckland:
 Each banner gets its own function invocation and time budget. Jobs are spaced
 70 minutes apart to accommodate Hobby's hour-level scheduling precision;
 current [Vercel limits](https://vercel.com/docs/cron-jobs/usage-and-pricing)
-allow 100 cron jobs per project. The unfiltered supermarkets endpoint remains
+allow 100 cron jobs per project. Retire a legacy route once its store is an
+approved registry target, so the same store is not collected twice a week; until
+then a same-week overlap replaces that store's current observation rather than
+corrupting it. The unfiltered supermarkets endpoint remains
 available for an authenticated manual batch. Later banners can match canonical
 products created by earlier jobs. Each adapter retries
 transient requests and validates its reported page/item totals. The MyFoodLink
@@ -213,6 +229,20 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 
 curl -H "Authorization: Bearer $CRON_SECRET" \
   https://your-project.vercel.app/api/cron/supermarkets
+
+curl -H "Authorization: Bearer $CRON_SECRET" \
+  "https://your-project.vercel.app/api/cron/collect?limit=1"
+```
+
+The queue itself is inspected and seeded with service-role credentials, never
+from the browser or a cron route:
+
+```bash
+npm run queue:sync              # preview data/stores.json against the database
+npm run queue:sync -- --execute # upsert those targets
+npm run queue:status            # eligible targets, this week's jobs, expired leases
+npm run queue:enqueue           # queue this NZ week (idempotent)
+npm run queue:work              # run one claimed job locally
 ```
 
 Create a public Vercel Blob store if retailer images should be copied to stable

@@ -83,6 +83,8 @@ for (const path of [
   '/api/cron/woolworths',
   '/api/cron/paknsave',
   '/api/cron/supermarkets?retailer=freshchoice',
+  '/api/cron/collect',
+  '/api/cron/collect?retailer=freshchoice&limit=1',
 ]) {
   assert.equal((await request(path)).status, 401);
 }
