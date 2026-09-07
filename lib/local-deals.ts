@@ -1,7 +1,18 @@
 import bundledSnapshot from '@/data/deals.json';
 
-import type { CollectorStore, RawOffer } from '@/lib/collectors/types';
+import type {
+  CollectorStore,
+  RawOffer,
+  CollectionScope,
+} from '@/lib/collectors/types';
 import type { Deal, PricePoint } from '@/lib/deals';
+import { multiBuyOffer } from '@/lib/retailer-pricing';
+import { appendWeeklyHistory } from '@/lib/weekly-history';
+import {
+  retailerProductKey,
+  retailerSlugForDeal,
+  scopedOfferId,
+} from '@/lib/offer-identity';
 
 export const LOCAL_DEALS_SCHEMA_VERSION = 1 as const;
 
@@ -11,6 +22,9 @@ export type LocalRetailerSnapshot = {
   store: CollectorStore;
   dealCount: number;
   collectedAt: string;
+  scope?: CollectionScope;
+  totalItemsReported?: number;
+  unpricedItems?: number;
 };
 
 export type LocalDealsSnapshot = {
@@ -27,14 +41,12 @@ type OfferCollection = {
   offers: RawOffer[];
 };
 
-const dateLabel = new Intl.DateTimeFormat('en-NZ', {
-  day: '2-digit',
-  month: 'short',
-  timeZone: 'Pacific/Auckland',
-});
-
 const retailerColors: Record<string, string> = {
+  foursquare: '#d71920',
+  freshchoice: '#57943a',
+  newworld: '#e31b23',
   paknsave: '#f4b942',
+  supervalue: '#6f4b8b',
   woolworths: '#83a977',
 };
 
@@ -72,6 +84,9 @@ function isDeal(value: unknown): value is Deal {
     typeof deal.promotion === 'string' &&
     typeof deal.memberOnly === 'boolean' &&
     (deal.imageUrl === undefined || typeof deal.imageUrl === 'string') &&
+    (deal.sourceUrl === undefined || typeof deal.sourceUrl === 'string') &&
+    (deal.collectedAt === undefined || typeof deal.collectedAt === 'string') &&
+    (deal.gtin === undefined || typeof deal.gtin === 'string') &&
     typeof deal.color === 'string' &&
     Array.isArray(deal.history) &&
     deal.history.every(isPricePoint)
@@ -114,29 +129,19 @@ export function getBundledLocalDeals() {
   return parseLocalDealsSnapshot(bundledSnapshot);
 }
 
-function appendHistory(
-  previous: Deal | undefined,
-  price: number,
-  collectedAt: Date,
-) {
-  const nextPoint = { date: dateLabel.format(collectedAt), price };
-  const history = previous?.history.slice() ?? [];
-  const last = history.at(-1);
-
-  if (last?.date === nextPoint.date) {
-    history[history.length - 1] = nextPoint;
-  } else if (!last || last.price !== nextPoint.price) {
-    history.push(nextPoint);
-  }
-
-  return history.slice(-90);
-}
-
 export function offersToLocalDeals(
   collection: OfferCollection,
   previousDeals: Deal[] = [],
 ) {
-  const previousById = new Map(previousDeals.map((deal) => [deal.id, deal]));
+  const previousById = new Map(
+    previousDeals
+      .filter((deal) =>
+        deal.sourceStoreId
+          ? deal.sourceStoreId === collection.store.sourceStoreId
+          : deal.store === collection.store.name,
+      )
+      .map((deal) => [retailerProductKey(deal), deal]),
+  );
 
   return collection.offers.flatMap((offer): Deal[] => {
     const effectivePriceCents =
@@ -148,15 +153,20 @@ export function offersToLocalDeals(
     const regularPriceCents = offer.regularPriceCents ?? effectivePriceCents;
     const price = effectivePriceCents / 100;
     const regularPrice = regularPriceCents / 100;
-    const id = `${collection.retailerSlug}-${offer.sourceProductId}`;
-    const history = appendHistory(
-      previousById.get(id),
-      price,
+    const id = scopedOfferId(
+      collection.retailerSlug,
+      offer.sourceProductId,
+      collection.store.sourceStoreId,
+    );
+    const history = appendWeeklyHistory(
+      previousById.get(`${collection.retailerSlug}-${offer.sourceProductId}`),
+      (multiBuyOffer(offer.promotionText)?.unitPriceCents ??
+        effectivePriceCents) / 100,
       offer.collectedAt,
     );
     const historicalPrices = history.map((point) => point.price);
     const average90d =
-      historicalPrices.length >= 3
+      historicalPrices.length >= 2
         ? historicalPrices.reduce((sum, value) => sum + value, 0) /
           historicalPrices.length
         : regularPrice;
@@ -174,12 +184,17 @@ export function offersToLocalDeals(
     return [
       {
         id,
+        sourceProductId: offer.sourceProductId,
+        retailerSlug: collection.retailerSlug,
         name: offer.sourceName,
         size: offer.size ?? 'See product details',
-        brand: offer.brand ?? collection.retailerName,
+        brand: offer.brand ?? '',
         category: offer.category ?? 'Other',
         retailer: collection.retailerName,
         store: collection.store.name,
+        sourceStoreId: collection.store.sourceStoreId,
+        storeKey: `source:${collection.store.sourceStoreId}`,
+        storeCity: collection.store.city,
         price,
         regularPrice,
         average90d,
@@ -187,19 +202,71 @@ export function offersToLocalDeals(
         score: Math.min(
           99,
           Math.round(
-            55 + advertisedDiscount * 1.2 + (history.length >= 3 ? 5 : 0),
+            55 + advertisedDiscount * 1.2 + (history.length >= 2 ? 5 : 0),
           ),
         ),
         promotion:
           offer.promotionText ??
           (offer.promotionType === 'MEMBER_PRICE'
             ? 'Member price'
-            : `${collection.retailerName} special`),
+            : offer.promotionType === 'SPECIAL'
+              ? `${collection.retailerName} special`
+              : 'Observed price'),
         memberOnly: offer.promotionType === 'MEMBER_PRICE',
         ...(offer.imageUrl ? { imageUrl: offer.imageUrl } : {}),
+        sourceUrl: offer.sourceUrl,
+        collectedAt: offer.collectedAt.toISOString(),
+        ...(offer.gtin ? { gtin: offer.gtin } : {}),
         color: retailerColors[collection.retailerSlug] ?? '#83a8a1',
         history,
       },
     ];
   });
+}
+
+export function mergeLocalStoreSnapshots(
+  existing: LocalDealsSnapshot,
+  refreshed: Array<{ metadata: LocalRetailerSnapshot; deals: Deal[] }>,
+  generatedAt: string,
+): LocalDealsSnapshot {
+  const storeKeys = new Set<string>();
+  const legacyNames = new Set<string>();
+  for (const { metadata } of refreshed) {
+    const key = JSON.stringify([metadata.slug, metadata.store.sourceStoreId]);
+    if (storeKeys.has(key))
+      throw new Error(
+        'Cannot publish the same store twice in one local refresh.',
+      );
+    storeKeys.add(key);
+    legacyNames.add(JSON.stringify([metadata.slug, metadata.store.name]));
+  }
+  const retainedDeals = existing.deals.filter((deal) => {
+    const slug = retailerSlugForDeal(deal);
+    return deal.sourceStoreId
+      ? !storeKeys.has(JSON.stringify([slug, deal.sourceStoreId]))
+      : !legacyNames.has(JSON.stringify([slug, deal.store]));
+  });
+  return {
+    schemaVersion: LOCAL_DEALS_SCHEMA_VERSION,
+    generatedAt,
+    retailers: [
+      ...existing.retailers.filter(
+        (metadata) =>
+          !storeKeys.has(
+            JSON.stringify([metadata.slug, metadata.store.sourceStoreId]),
+          ),
+      ),
+      ...refreshed.map(({ metadata }) => metadata),
+    ].sort(
+      (a, b) =>
+        a.slug.localeCompare(b.slug) ||
+        a.store.sourceStoreId.localeCompare(b.store.sourceStoreId),
+    ),
+    deals: [...retainedDeals, ...refreshed.flatMap(({ deals }) => deals)].sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.name.localeCompare(b.name) ||
+        a.id.localeCompare(b.id),
+    ),
+  };
 }

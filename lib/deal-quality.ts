@@ -3,7 +3,7 @@ import { dealOfferPrice, type Deal } from '@/lib/deals';
 export const WOOLWORTHS_MIN_ADVERTISED_DISCOUNT = 40;
 export const PAKNSAVE_MIN_ADVERTISED_DISCOUNT = 30;
 export const PAKNSAVE_MIN_HISTORICAL_DISCOUNT = 25;
-export const MIN_PRIOR_PRICE_OBSERVATIONS = 3;
+export const MIN_PRIOR_PRICE_OBSERVATIONS = 1;
 
 function percentBelow(referencePrice: number, currentPrice: number) {
   if (!Number.isFinite(referencePrice) || referencePrice <= 0) return 0;

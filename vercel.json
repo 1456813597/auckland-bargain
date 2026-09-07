@@ -6,11 +6,27 @@
   "crons": [
     {
       "path": "/api/cron/woolworths",
-      "schedule": "10 17 * * *"
+      "schedule": "10 16 * * 0"
     },
     {
-      "path": "/api/cron/paknsave",
-      "schedule": "25 17 * * *"
+      "path": "/api/cron/supermarkets?retailer=paknsave",
+      "schedule": "20 17 * * 0"
+    },
+    {
+      "path": "/api/cron/supermarkets?retailer=newworld",
+      "schedule": "30 18 * * 0"
+    },
+    {
+      "path": "/api/cron/supermarkets?retailer=foursquare",
+      "schedule": "40 19 * * 0"
+    },
+    {
+      "path": "/api/cron/supermarkets?retailer=freshchoice",
+      "schedule": "50 20 * * 0"
+    },
+    {
+      "path": "/api/cron/supermarkets?retailer=supervalue",
+      "schedule": "0 22 * * 0"
     }
   ]
 }

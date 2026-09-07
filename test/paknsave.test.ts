@@ -16,6 +16,13 @@ function requestUrl(input: Parameters<typeof fetch>[0]) {
   return new URL(input.url);
 }
 
+function requestJsonBody(init: RequestInit | undefined) {
+  if (typeof init?.body !== 'string') {
+    throw new Error('Expected a string request body.');
+  }
+  return JSON.parse(init.body) as unknown;
+}
+
 describe('toPaknsaveOffer', () => {
   it('maps integer cents and the largest product image', () => {
     const offer = toPaknsaveOffer(
@@ -191,7 +198,7 @@ describe('PaknsaveCollector', () => {
       }
 
       assert.equal(url.pathname, '/v1/edge/search/paginated/products');
-      const body = JSON.parse(String(init?.body)) as {
+      const body = requestJsonBody(init) as {
         algoliaQuery: { filters: string; facetFilters?: string[][] };
         hitsPerPage: number;
         page: number;
@@ -275,7 +282,7 @@ describe('PaknsaveCollector', () => {
         return Response.json({ access_token: 'token' });
       }
 
-      const body = JSON.parse(String(init?.body)) as {
+      const body = requestJsonBody(init) as {
         algoliaQuery: { facetFilters?: string[][] };
       };
       const categoryFilter = body.algoliaQuery.facetFilters?.[0]?.[0];
@@ -348,7 +355,7 @@ describe('PaknsaveCollector', () => {
       if (url.pathname === '/api/user/get-current-user') {
         return Response.json({ access_token: 'token' });
       }
-      const body = JSON.parse(String(init?.body)) as {
+      const body = requestJsonBody(init) as {
         algoliaQuery: { facetFilters?: string[][] };
       };
       if (!body.algoliaQuery.facetFilters) {

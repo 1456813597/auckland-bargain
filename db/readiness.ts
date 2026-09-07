@@ -4,6 +4,8 @@ type ReadinessRpcResult = {
   schemaVersion?: unknown;
   currentDeals?: unknown;
   claimCollectionRun?: unknown;
+  atomicWeeklySnapshots?: unknown;
+  durableCollectionQueue?: unknown;
   ready?: unknown;
 };
 
@@ -16,6 +18,8 @@ export type DatabaseReadiness = {
     currentDeals: boolean;
     claimCollectionRun: boolean;
     currentDealsReadable: boolean;
+    atomicWeeklySnapshots: boolean;
+    durableCollectionQueue: boolean;
   };
   error?: string;
 };
@@ -31,6 +35,8 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
         currentDeals: false,
         claimCollectionRun: false,
         currentDealsReadable: false,
+        atomicWeeklySnapshots: false,
+        durableCollectionQueue: false,
       },
       error: 'Supabase is not configured.',
     };
@@ -48,6 +54,8 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
         currentDeals: false,
         claimCollectionRun: false,
         currentDealsReadable: false,
+        atomicWeeklySnapshots: false,
+        durableCollectionQueue: false,
       },
       error: `Database readiness RPC failed: ${error.message}`,
     };
@@ -56,6 +64,8 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
   const rpc = (data ?? {}) as ReadinessRpcResult;
   const currentDeals = rpc.currentDeals === true;
   const claimCollectionRun = rpc.claimCollectionRun === true;
+  const atomicWeeklySnapshots = rpc.atomicWeeklySnapshots === true;
+  const durableCollectionQueue = rpc.durableCollectionQueue === true;
   const rpcReady = rpc.ready === true;
   const { error: dealsError } = await supabase
     .from('current_deals')
@@ -63,7 +73,12 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
     .limit(1);
   const currentDealsReadable = dealsError === null;
   const ready =
-    rpcReady && currentDeals && claimCollectionRun && currentDealsReadable;
+    rpcReady &&
+    currentDeals &&
+    claimCollectionRun &&
+    currentDealsReadable &&
+    atomicWeeklySnapshots &&
+    durableCollectionQueue;
 
   return {
     ready,
@@ -75,6 +90,8 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
       currentDeals,
       claimCollectionRun,
       currentDealsReadable,
+      atomicWeeklySnapshots,
+      durableCollectionQueue,
     },
     ...(dealsError
       ? { error: `Current deals readiness query failed: ${dealsError.message}` }

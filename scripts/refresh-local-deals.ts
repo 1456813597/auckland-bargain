@@ -1,22 +1,40 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
 import nextEnv from '@next/env';
 
+import { FourSquareCollector } from '../lib/collectors/foursquare';
+import {
+  FreshChoiceCollector,
+  SuperValueCollector,
+} from '../lib/collectors/myfoodlink';
+import { NewWorldCollector } from '../lib/collectors/newworld';
 import { PaknsaveCollector } from '../lib/collectors/paknsave';
 import { WoolworthsCollector } from '../lib/collectors/woolworths';
-import { dealEvidencePercent, isStrongDeal } from '../lib/deal-quality';
+import { collectForComparison } from '../lib/collectors/comparison-collection';
+import type { CollectionScope } from '../lib/collectors/types';
 import type { Deal } from '../lib/deals';
+import {
+  withLocalSnapshotLock,
+  writeLocalSnapshotAtomically,
+} from '../lib/collection/local-snapshot-file';
 import {
   LOCAL_DEALS_SCHEMA_VERSION,
   offersToLocalDeals,
   parseLocalDealsSnapshot,
+  mergeLocalStoreSnapshots,
   type LocalDealsSnapshot,
   type LocalRetailerSnapshot,
 } from '../lib/local-deals';
 
-type RetailerSlug = 'paknsave' | 'woolworths';
+type RetailerSlug =
+  | 'foursquare'
+  | 'freshchoice'
+  | 'newworld'
+  | 'paknsave'
+  | 'supervalue'
+  | 'woolworths';
 type CollectedRetailer = {
   slug: RetailerSlug;
   name: string;
@@ -35,23 +53,6 @@ function positiveInteger(value: string | undefined, fallback: number) {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-const maximumDealsPerRetailer = positiveInteger(
-  process.env.LOCAL_DEALS_PER_RETAILER,
-  100,
-);
-
-function keepTopDeals(deals: Deal[]) {
-  return deals
-    .filter(isStrongDeal)
-    .sort(
-      (left, right) =>
-        dealEvidencePercent(right) - dealEvidencePercent(left) ||
-        right.score - left.score ||
-        left.name.localeCompare(right.name),
-    )
-    .slice(0, maximumDealsPerRetailer);
-}
-
 function selectedRetailers(): RetailerSlug[] {
   const inline = process.argv.find((value) => value.startsWith('--retailer='));
   const flagIndex = process.argv.indexOf('--retailer');
@@ -61,13 +62,40 @@ function selectedRetailers(): RetailerSlug[] {
     'all'
   ).toLowerCase();
 
-  if (requested === 'all') return ['woolworths', 'paknsave'];
-  if (requested === 'woolworths' || requested === 'paknsave') {
+  if (requested === 'all') {
+    return [
+      'woolworths',
+      'paknsave',
+      'newworld',
+      'foursquare',
+      'freshchoice',
+      'supervalue',
+    ];
+  }
+  if (
+    requested === 'woolworths' ||
+    requested === 'paknsave' ||
+    requested === 'newworld' ||
+    requested === 'foursquare' ||
+    requested === 'freshchoice' ||
+    requested === 'supervalue'
+  ) {
     return [requested];
   }
   throw new Error(
-    `Unknown retailer "${requested}". Use all, woolworths, or paknsave.`,
+    `Unknown retailer "${requested}". Use all, woolworths, paknsave, newworld, foursquare, freshchoice, or supervalue.`,
   );
+}
+
+function requestedScope(): CollectionScope | undefined {
+  const inline = process.argv.find((value) => value.startsWith('--scope='));
+  const index = process.argv.indexOf('--scope');
+  const value =
+    inline?.slice('--scope='.length) ??
+    (index >= 0 ? process.argv[index + 1] : 'auto');
+  if (value === 'auto') return undefined;
+  if (value === 'catalogue' || value === 'specials') return value;
+  throw new Error('Unknown collection scope. Use auto, catalogue or specials.');
 }
 
 async function readExistingSnapshot(): Promise<LocalDealsSnapshot> {
@@ -93,17 +121,21 @@ async function collectWoolworths(previousDeals: Deal[]) {
     maxPages: positiveInteger(process.env.WOOLWORTHS_MAX_PAGES, 60),
     pageSize: positiveInteger(process.env.WOOLWORTHS_PAGE_SIZE, 100),
   });
-  const collection = await collector.collectSpecials();
-  const deals = keepTopDeals(
-    offersToLocalDeals(
-      {
-        retailerSlug: 'woolworths',
-        retailerName: 'Woolworths',
-        store: collection.store,
-        offers: collection.offers,
-      },
-      previousDeals,
-    ),
+  const [store] = await collector.getStores();
+  if (!store) throw new Error('Woolworths did not identify its store.');
+  const collection = await collectForComparison(
+    collector,
+    store,
+    requestedScope(),
+  );
+  const deals = offersToLocalDeals(
+    {
+      retailerSlug: 'woolworths',
+      retailerName: 'Woolworths',
+      store: collection.store,
+      offers: collection.offers,
+    },
+    previousDeals,
   );
 
   return {
@@ -116,6 +148,9 @@ async function collectWoolworths(previousDeals: Deal[]) {
       store: collection.store,
       dealCount: deals.length,
       collectedAt: collection.offers[0]!.collectedAt.toISOString(),
+      scope: collection.scope,
+      totalItemsReported: collection.totalItemsReported,
+      unpricedItems: collection.unpricedItems ?? 0,
     },
   } satisfies CollectedRetailer;
 }
@@ -129,17 +164,19 @@ async function collectPaknsave(previousDeals: Deal[]) {
   });
   const [store] = await collector.getStores();
   if (!store) throw new Error("PAK'nSAVE did not return a matching store.");
-  const collection = await collector.collectSpecials(store);
-  const deals = keepTopDeals(
-    offersToLocalDeals(
-      {
-        retailerSlug: 'paknsave',
-        retailerName: "PAK'nSAVE",
-        store: collection.store,
-        offers: collection.offers,
-      },
-      previousDeals,
-    ),
+  const collection = await collectForComparison(
+    collector,
+    store,
+    requestedScope(),
+  );
+  const deals = offersToLocalDeals(
+    {
+      retailerSlug: 'paknsave',
+      retailerName: "PAK'nSAVE",
+      store: collection.store,
+      offers: collection.offers,
+    },
+    previousDeals,
   );
 
   return {
@@ -152,26 +189,222 @@ async function collectPaknsave(previousDeals: Deal[]) {
       store: collection.store,
       dealCount: deals.length,
       collectedAt: collection.offers[0]!.collectedAt.toISOString(),
+      scope: collection.scope,
+      totalItemsReported: collection.totalItemsReported,
+      unpricedItems: collection.unpricedItems ?? 0,
     },
   } satisfies CollectedRetailer;
 }
 
+async function collectNewWorld(previousDeals: Deal[]) {
+  const collector = new NewWorldCollector({
+    storeId: process.env.NEWWORLD_STORE_ID,
+    storeQuery: process.env.NEWWORLD_STORE_QUERY ?? 'Metro Queen St',
+    city: process.env.NEWWORLD_STORE_CITY,
+    maxPages: positiveInteger(process.env.NEWWORLD_MAX_PAGES, 20),
+  });
+  const [store] = await collector.getStores();
+  if (!store) throw new Error('New World did not return a matching store.');
+  const collection = await collectForComparison(
+    collector,
+    store,
+    requestedScope(),
+  );
+  const deals = offersToLocalDeals(
+    {
+      retailerSlug: 'newworld',
+      retailerName: 'New World',
+      store: collection.store,
+      offers: collection.offers,
+    },
+    previousDeals,
+  );
+
+  return {
+    slug: 'newworld',
+    name: 'New World',
+    deals,
+    metadata: {
+      slug: 'newworld',
+      name: 'New World',
+      store: collection.store,
+      dealCount: deals.length,
+      collectedAt: collection.offers[0]!.collectedAt.toISOString(),
+      scope: collection.scope,
+      totalItemsReported: collection.totalItemsReported,
+      unpricedItems: collection.unpricedItems ?? 0,
+    },
+  } satisfies CollectedRetailer;
+}
+
+async function collectFourSquare(previousDeals: Deal[]) {
+  const collector = new FourSquareCollector({
+    storeId: process.env.FOURSQUARE_STORE_ID,
+    storeQuery: process.env.FOURSQUARE_STORE_QUERY ?? 'Lancaster',
+    city: process.env.FOURSQUARE_STORE_CITY,
+    maxPages: positiveInteger(process.env.FOURSQUARE_MAX_PAGES, 10),
+  });
+  const [store] = await collector.getStores();
+  if (!store) throw new Error('Four Square did not return a matching store.');
+  const collection = await collectForComparison(
+    collector,
+    store,
+    requestedScope(),
+  );
+  const deals = offersToLocalDeals(
+    {
+      retailerSlug: 'foursquare',
+      retailerName: 'Four Square',
+      store: collection.store,
+      offers: collection.offers,
+    },
+    previousDeals,
+  );
+
+  return {
+    slug: 'foursquare',
+    name: 'Four Square',
+    deals,
+    metadata: {
+      slug: 'foursquare',
+      name: 'Four Square',
+      store: collection.store,
+      dealCount: deals.length,
+      collectedAt:
+        collection.offers[0]?.collectedAt.toISOString() ??
+        new Date().toISOString(),
+      scope: collection.scope,
+      totalItemsReported: collection.totalItemsReported,
+      unpricedItems: collection.unpricedItems ?? 0,
+    },
+  } satisfies CollectedRetailer;
+}
+
+async function collectFreshChoice(previousDeals: Deal[]) {
+  const collector = new FreshChoiceCollector({
+    storeOrigin: process.env.FRESHCHOICE_STORE_ORIGIN,
+    city: process.env.FRESHCHOICE_STORE_CITY,
+    address: process.env.FRESHCHOICE_STORE_ADDRESS,
+    maxPages: positiveInteger(process.env.FRESHCHOICE_MAX_PAGES, 80),
+  });
+  const [store] = await collector.getStores();
+  if (!store) throw new Error('FreshChoice did not return a matching store.');
+  const collection = await collectForComparison(
+    collector,
+    store,
+    requestedScope(),
+  );
+  const deals = offersToLocalDeals(
+    {
+      retailerSlug: 'freshchoice',
+      retailerName: 'FreshChoice',
+      store: collection.store,
+      offers: collection.offers,
+    },
+    previousDeals,
+  );
+
+  return {
+    slug: 'freshchoice',
+    name: 'FreshChoice',
+    deals,
+    metadata: {
+      slug: 'freshchoice',
+      name: 'FreshChoice',
+      store: collection.store,
+      dealCount: deals.length,
+      collectedAt:
+        collection.offers[0]?.collectedAt.toISOString() ??
+        new Date().toISOString(),
+      scope: collection.scope,
+      totalItemsReported: collection.totalItemsReported,
+      unpricedItems: collection.unpricedItems ?? 0,
+    },
+  } satisfies CollectedRetailer;
+}
+
+async function collectSuperValue(previousDeals: Deal[]) {
+  const collector = new SuperValueCollector({
+    storeOrigin: process.env.SUPERVALUE_STORE_ORIGIN,
+    city: process.env.SUPERVALUE_STORE_CITY,
+    address: process.env.SUPERVALUE_STORE_ADDRESS,
+    maxPages: positiveInteger(process.env.SUPERVALUE_MAX_PAGES, 60),
+  });
+  const [store] = await collector.getStores();
+  if (!store) throw new Error('SuperValue did not return a matching store.');
+  const collection = await collectForComparison(
+    collector,
+    store,
+    requestedScope(),
+  );
+  const deals = offersToLocalDeals(
+    {
+      retailerSlug: 'supervalue',
+      retailerName: 'SuperValue',
+      store: collection.store,
+      offers: collection.offers,
+    },
+    previousDeals,
+  );
+
+  return {
+    slug: 'supervalue',
+    name: 'SuperValue',
+    deals,
+    metadata: {
+      slug: 'supervalue',
+      name: 'SuperValue',
+      store: collection.store,
+      dealCount: deals.length,
+      collectedAt:
+        collection.offers[0]?.collectedAt.toISOString() ??
+        new Date().toISOString(),
+      scope: collection.scope,
+      totalItemsReported: collection.totalItemsReported,
+      unpricedItems: collection.unpricedItems ?? 0,
+    },
+  } satisfies CollectedRetailer;
+}
+
+async function collectRetailer(retailer: RetailerSlug, previousDeals: Deal[]) {
+  switch (retailer) {
+    case 'woolworths':
+      return collectWoolworths(previousDeals);
+    case 'paknsave':
+      return collectPaknsave(previousDeals);
+    case 'newworld':
+      return collectNewWorld(previousDeals);
+    case 'foursquare':
+      return collectFourSquare(previousDeals);
+    case 'freshchoice':
+      return collectFreshChoice(previousDeals);
+    case 'supervalue':
+      return collectSuperValue(previousDeals);
+  }
+}
+
 async function main() {
   const requested = selectedRetailers();
+  if (requestedScope() === 'catalogue') {
+    const unsupported = requested.filter(
+      (retailer) => !['freshchoice', 'supervalue'].includes(retailer),
+    );
+    if (unsupported.length)
+      throw new Error(
+        `Complete catalogue is not yet supported for: ${unsupported.join(', ')}. No stores were requested.`,
+      );
+  }
   const existing = await readExistingSnapshot();
   const successful: CollectedRetailer[] = [];
   const failures: string[] = [];
 
   for (const retailer of requested) {
-    process.stdout.write(`Collecting ${retailer} specials...\n`);
+    process.stdout.write(`Collecting ${retailer} prices...\n`);
     try {
-      const result =
-        retailer === 'woolworths'
-          ? await collectWoolworths(existing.deals)
-          : await collectPaknsave(existing.deals);
+      const result = await collectRetailer(retailer, existing.deals);
       successful.push(result);
       process.stdout.write(
-        `Collected ${result.deals.length} ${result.name} deals.\n`,
+        `Collected ${result.deals.length} ${result.name} prices (${result.metadata.scope}).\n`,
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -186,35 +419,13 @@ async function main() {
     );
   }
 
-  const refreshed = new Set(successful.map((result) => result.slug));
-  const retainedDeals = existing.deals.filter(
-    (deal) =>
-      !successful.some((result) => deal.id.startsWith(`${result.slug}-`)),
+  const snapshot = mergeLocalStoreSnapshots(
+    existing,
+    successful,
+    new Date().toISOString(),
   );
-  const retainedRetailers = existing.retailers.filter(
-    (retailer) => !refreshed.has(retailer.slug as RetailerSlug),
-  );
-  const snapshot: LocalDealsSnapshot = {
-    schemaVersion: LOCAL_DEALS_SCHEMA_VERSION,
-    generatedAt: new Date().toISOString(),
-    retailers: [
-      ...retainedRetailers,
-      ...successful.map((result) => result.metadata),
-    ].sort((left, right) => left.slug.localeCompare(right.slug)),
-    deals: [
-      ...retainedDeals,
-      ...successful.flatMap((result) => result.deals),
-    ].sort(
-      (left, right) =>
-        right.score - left.score || left.name.localeCompare(right.name),
-    ),
-  };
 
-  await writeFile(
-    snapshotPath,
-    `${JSON.stringify(snapshot, null, 2)}\n`,
-    'utf8',
-  );
+  await writeLocalSnapshotAtomically(snapshotPath, snapshot);
   process.stdout.write(
     `Saved ${snapshot.deals.length} deals to ${path.relative(projectDirectory, snapshotPath)}.\n`,
   );
@@ -227,7 +438,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+withLocalSnapshotLock(snapshotPath, main).catch((error) => {
   process.stderr.write(
     `${error instanceof Error ? error.message : String(error)}\n`,
   );

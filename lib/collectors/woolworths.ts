@@ -66,6 +66,7 @@ export type WoolworthsCollection = {
   offers: RawOffer[];
   pagesCollected: number;
   totalItemsReported: number;
+  unpricedItems: number;
 };
 
 function cents(value: number | null | undefined) {
@@ -310,16 +311,37 @@ export class WoolworthsCollector implements RetailerCollector {
       }
 
       store = pageStore;
-      totalItemsReported = Math.max(
-        totalItemsReported,
-        response.products?.totalItems ?? 0,
-      );
+      const reportedTotal = response.products?.totalItems;
+      if (
+        !Number.isSafeInteger(reportedTotal) ||
+        Number(reportedTotal) < 0 ||
+        !Array.isArray(response.products?.items)
+      )
+        throw new Error(
+          'Woolworths returned invalid product totals or items; refusing a partial snapshot.',
+        );
+      if (page > 1 && reportedTotal !== totalItemsReported)
+        throw new Error(
+          'Woolworths product total changed between pages; refusing a partial snapshot.',
+        );
+      totalItemsReported = Number(reportedTotal);
       totalPages = Math.max(1, Math.ceil(totalItemsReported / this.pageSize));
+      if (totalPages > this.maxPages)
+        throw new Error(
+          `Woolworths collection needs more than the configured ${this.maxPages} pages.`,
+        );
 
       for (const product of response.products?.items ?? []) {
         if (product.type && product.type !== 'Product') continue;
-        if (product.sku === undefined) continue;
-        products.set(String(product.sku), product);
+        if (
+          (typeof product.sku !== 'string' &&
+            typeof product.sku !== 'number') ||
+          !String(product.sku).trim()
+        )
+          throw new Error(
+            'Woolworths returned a product without an SKU; refusing a partial snapshot.',
+          );
+        products.set(String(product.sku).trim(), product);
       }
 
       pagesCollected = page;
@@ -330,6 +352,11 @@ export class WoolworthsCollector implements RetailerCollector {
       throw new Error('Woolworths did not return a store context.');
     }
 
+    if (products.size !== totalItemsReported)
+      throw new Error(
+        `Woolworths reported ${totalItemsReported} products but returned ${products.size} unique SKUs; refusing a partial snapshot.`,
+      );
+
     const offers = [...products.values()]
       .map((product) => toWoolworthsOffer(product, collectedAt, this.origin))
       .filter((offer): offer is RawOffer => Boolean(offer));
@@ -338,6 +365,12 @@ export class WoolworthsCollector implements RetailerCollector {
       throw new Error('Woolworths returned no usable specials.');
     }
 
-    return { store, offers, pagesCollected, totalItemsReported };
+    return {
+      store,
+      offers,
+      pagesCollected,
+      totalItemsReported,
+      unpricedItems: products.size - offers.length,
+    };
   }
 }

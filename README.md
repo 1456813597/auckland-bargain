@@ -1,209 +1,238 @@
 # Auckland Bargain
 
-A Vercel-hosted Next.js grocery price tracker for Auckland. Live collectors
-read anonymous PAK'nSAVE and Woolworths NZ specials for selected stores and
-store current offers, change-only price history, and collection health in
-Supabase.
+A New Zealand grocery comparison app built with Next.js 16, Supabase and
+Vercel. It follows PriceSpy's useful core flow—search, compare equivalent
+offers, inspect recent movement, then visit the retailer—but applies it to
+store-aware supermarket prices.
 
-## What is live
+## Current product flow
 
-- Woolworths NZ public specials API
-- Anonymous default fulfilment store: Woolworths Glenfield (source id 9171)
-- PAK'nSAVE anonymous guest API, defaulting to the real Royal Oak store
-- Royal Oak source id: `e1925ea7-01bc-4358-ae7c-c6502da5ab12`
-- Integer NZ-cent price storage, with public promo and member prices separated
-- Supabase-backed current offers and 90-day history
-- Public Vercel Blob copies of collected product images
-- Daily Vercel Cron endpoints at `/api/cron/woolworths` and
-  `/api/cron/paknsave`
-- Dashboard and read-only APIs that use Supabase when configured
-- JSON snapshot fallback for local UI work without database credentials
+1. Search by product, brand, size or category.
+2. Filter by locality, supermarket or require a cross-retailer match. Search,
+   filters, sort and pagination are shareable in the URL.
+3. Open a canonical product to compare retailer offers from lowest to highest.
+4. Check the latest observed prices against the one retained prior observation.
+5. Review why products were matched and follow the source offer to the store.
 
-The Woolworths endpoint is public but undocumented. Collection is deliberately
-low-frequency, paginated, timeout-bounded, and retried only for transient
-failures. A database lease prevents overlapping runs. Only a complete run can
-deactivate offers that disappeared from the latest specials snapshot.
+The UI reads Supabase first, then the tracked `data/deals.json` snapshot, and
+finally a small demo dataset. Fallback content is clearly labelled and never
+presented as live data.
+
+## Retailer coverage
+
+The collectors support selected stores from six New Zealand grocery banners:
+
+- Woolworths NZ, using a public but undocumented specials endpoint
+- PAK'nSAVE, using the Foodstuffs guest API
+- New World, using the Foodstuffs guest API
+- Four Square, using its public local-specials page and nationwide store directory
+- FreshChoice, using its store-specific online department catalogue
+- SuperValue, using its store-specific online department catalogue
+
+Every observation is tied to a physical store because prices can differ by
+location. Defaults use Auckland stores where each source offers one, plus
+SuperValue Milton for the South Island banner. Four Square exposes 213 stores
+to the collector; each run still selects one locality so prices from different
+cities are not mixed into a misleading comparison. Independent grocers and
+stores without a remotely accessible catalogue still require a source-specific
+adapter. The UI never treats missing coverage as proof that no offer exists.
+
+See [docs/product-comparison-architecture.md](docs/product-comparison-architecture.md)
+for the matching, collection and retention design.
+The latest verified progress and remaining coverage/deployment work are recorded
+in [docs/implementation-status.md](docs/implementation-status.md).
+Review [source access and reuse restrictions](docs/source-access-review.md)
+before running automated collection or publishing the data. Technical access
+does not establish permission to republish product content or images.
+
+## Product identity and matching
+
+Retailer names are preserved as source data and linked to a separate canonical
+product. Matching uses:
+
+- exact GTIN/barcode when both sources provide it;
+- otherwise a weighted score: brand 28%, product wording 42%, pack size 22%,
+  category 8%;
+- an automatic-match threshold of `0.86` and a review threshold of `0.72`;
+- hard rejection for different GTINs, incompatible sizes, weak brands, or
+  protected variants such as salted/unsalted and regular/diet/zero.
+
+Ambiguous candidates are written to `product_match_reviews`. A source product
+is never silently merged below the automatic threshold.
+
+## Weekly collection and retention
+
+`vercel.json` defines six protected weekly production jobs every Sunday UTC,
+which is Monday morning in Auckland:
+
+- `/api/cron/woolworths` at `16:10 UTC`
+- `/api/cron/supermarkets?retailer=paknsave` at `17:20 UTC`
+- `/api/cron/supermarkets?retailer=newworld` at `18:30 UTC`
+- `/api/cron/supermarkets?retailer=foursquare` at `19:40 UTC`
+- `/api/cron/supermarkets?retailer=freshchoice` at `20:50 UTC`
+- `/api/cron/supermarkets?retailer=supervalue` at `22:00 UTC`
+
+Each banner gets its own function invocation and time budget. Jobs are spaced
+70 minutes apart to accommodate Hobby's hour-level scheduling precision;
+current [Vercel limits](https://vercel.com/docs/cron-jobs/usage-and-pricing)
+allow 100 cron jobs per project. The unfiltered supermarkets endpoint remains
+available for an authenticated manual batch. Later banners can match canonical
+products created by earlier jobs. Each adapter retries
+transient requests and validates its reported page/item totals. The MyFoodLink
+adapter automatically partitions by department when its upstream search limit
+would otherwise hide results after page 50. Database leases prevent overlapping
+retailer/store runs and only a complete run deactivates missing offers.
+
+FreshChoice and SuperValue comparison jobs now select the normal department
+catalogue, including regular prices. The collector reads the storefront's
+published department tree and recurses into child categories when a parent
+exceeds the page limit. Every visited category must match its advertised unique
+product count; store changes, missing pages, invalid navigation and exhausted
+page budgets fail the run. Unpriced items are counted separately, never assigned
+a made-up price. The virtual "All Departments" node is not requested as a URL.
+No catalogue failure silently falls back to a specials-only snapshot.
+
+Offers are first written to `collection_offer_staging`. Finalization verifies
+the expected count and publishes all store prices, removes missing offers and
+updates history in a single database transaction. Failed and expired runs clear
+their staging rows without publishing partial prices.
+
+`current_offers` stores the live state. `offer_history` retains at most two
+distinct New Zealand calendar weeks per product and store: the current capture
+and one prior capture. Same-week retries replace that week's observation;
+unchanged prices still create a new observation the following week. The local
+JSON refresh uses the same week boundaries, including daylight saving. Legacy
+JSON labels without an absolute date are not used to invent a prior week.
+
+Displayed price movements compare the same offers with both observations.
+Newly covered, cheaper stores do not count as price reductions. Prior captures
+can be older than last week after a missed run; the interface shows collection
+dates and does not label them as last week's prices.
 
 ## Local setup
 
-Requirement: Node.js 22.13 or newer. Supabase is optional for local UI work.
+Requires Node.js 22.13 or newer. Supabase is optional for fallback UI work.
 
-1. Install dependencies:
+```bash
+npm install
+supabase link --project-ref your-project-ref
+supabase db push
+```
 
-   ```bash
-   npm install
-   ```
+Copy `.env.example` to `.env.local`. For database-backed collection set:
 
-2. To run against a database, link the Supabase CLI and apply all tracked
-   migrations:
+- `SUPABASE_URL`
+- `SUPABASE_SECRET_KEY` (server-only; the legacy service-role name also works)
+- `CRON_SECRET` (at least 16 random characters)
+- `BLOB_READ_WRITE_TOKEN` for durable product images
 
-   ```bash
-   supabase link --project-ref your-project-ref
-   supabase db push
-   ```
+Then run:
 
-   Do not apply production schema changes through an application HTTP route or
-   directly in the Supabase SQL editor. Keeping every change in
-   `supabase/migrations` preserves migration history and lets CI verify the
-   database before deployment.
+```bash
+npm run dev
+```
 
-3. Copy `.env.example` to `.env.local`. For database-backed development, set:
+Never prefix a Supabase secret with `NEXT_PUBLIC_` or commit `.env.local`.
 
-   - `SUPABASE_URL`
-   - `SUPABASE_SECRET_KEY` (server-only; legacy
-     `SUPABASE_SERVICE_ROLE_KEY` also works)
-   - `CRON_SECRET` (a random value of at least 16 characters)
-   - `BLOB_READ_WRITE_TOKEN` from a public Vercel Blob store
+### Local snapshot refresh
 
-4. Run:
+For permission-aware, multi-store collection, start with the read-only plan:
 
-   ```bash
-   npm run dev
-   ```
+```bash
+npm run stores:plan
+# Only after source-access review and registry configuration:
+npm run stores:refresh -- --store freshchoice-epsom
+```
 
-Never prefix the Supabase secret with `NEXT_PUBLIC_` and never commit
-`.env.local`.
+`data/stores.json` explicitly lists source IDs, locality, scope and access status.
+All bundled entries are pending, so the registered runner makes no source
+requests for them. Approved due stores are processed independently; same-week
+successes are skipped on retry. Checkpoints preserve other stores and use an
+exclusive lock and atomic file replacement. See [registered store collection](docs/store-registry.md)
+for configuration, failure handling and the remaining production queue work.
 
-### Local JSON fallback
-
-To collect current specials without Supabase, run:
+The legacy environment-selected commands below remain available. Their source
+selection and the existing cron routes do not yet read the registry's permission
+gate; do not run them or activate deployment until source access is reviewed.
 
 ```bash
 npm run deals:refresh
-```
-
-This calls the existing Woolworths and PAK'nSAVE collectors directly and
-writes the normalized result to `data/deals.json`. By default it retains the
-top 100 deals per retailer; set `LOCAL_DEALS_PER_RETAILER` to change that limit.
-You can refresh only one retailer while retaining the other retailer's last
-snapshot:
-
-```bash
 npm run deals:refresh -- --retailer woolworths
 npm run deals:refresh -- --retailer paknsave
+npm run deals:refresh -- --retailer newworld
+npm run deals:refresh -- --retailer foursquare
+npm run deals:refresh -- --retailer freshchoice
+npm run deals:refresh -- --retailer supervalue
+# Explicit catalogue scope fails before collection for unsupported banners:
+npm run deals:refresh -- --retailer freshchoice --scope catalogue
+# Source diagnostics only:
+npm run deals:refresh -- --retailer freshchoice --scope specials
 ```
 
-The `/api/deals` and `/api/products/:id` endpoints try Supabase first. When
-Supabase is not configured or cannot be read, they use `data/deals.json`; if
-that file has no collected deals, they use the small built-in demo dataset.
-The dev server watches the JSON file, so refresh the dashboard after the script
-finishes. The JSON snapshot is intentionally tracked and may be committed when
-you want a shared fallback dataset.
+The script writes every collected, priced offer to `data/deals.json`, including
+modest discounts and offers without a claimed discount. The old 100-item
+strong-deal limit no longer applies to comparison data. The default `auto` scope
+chooses full published departments for FreshChoice/SuperValue, and the currently
+supported specials sources for the other four banners. Snapshot metadata records
+the scope and number of items without usable prices. This is not yet nationwide
+or all-banner regular-price coverage. Each product retains its current and one
+prior weekly observation. The bundled snapshot has not yet been refreshed with
+the new full-catalogue adapters.
 
-## Vercel deployment
+## Read-only APIs
 
-Create a Vercel project from this repository and add the required variables to
-the Production environment. Preview deployments should use a separate Supabase
-project or no database credentials. Vercel's Git integration automatically
-builds commits pushed to `main`; the GitHub repository requires no deployment
-secrets.
+- `GET /api/comparisons?q=&category=&retailer=&city=&matched=&sort=&page=&limit=` returns canonical
+  products and sorted offers with `total`, `page`, `pageSize` and `totalPages`
+  metadata. The page size is capped at 250; every result remains addressable.
+- `GET /api/products/:id` returns one comparison, accepting a canonical or
+  retailer-offer ID.
+- `GET /api/deals` remains as a compatibility endpoint for offer-level data.
+- `GET /api/health/ready` verifies that the required view and RPC exist.
 
-`vercel.json` runs `npm run build:vercel` as the Build Command. Every Vercel
-build runs the tests, type checking, lint, the HTTP migration-route guard and
-the Next.js production build. When `VERCEL_ENV=production`, the same command
-also applies pending Supabase migrations and verifies database readiness before
-building. Preview builds never link to or migrate the production database.
+Responses identify `database`, `local-json` or `demo` as their source. The
+comparison endpoints also report `weekly` cadence and one retained historical
+snapshot.
 
-The connected Supabase integration injects `POSTGRES_URL_NON_POOLING`, which the
-Production build uses for migrations without a Supabase access token or GitHub
-secret. If the integration is not connected, add `POSTGRES_URL_NON_POOLING` as
-a Sensitive Environment Variable scoped only to Vercel Production. Configure
-the remaining application variables documented in `.env.example` in Vercel as
-well.
+The compatibility field `weeklyChange` describes the difference between the
+latest and prior retained observations for the same offers. It is not a guarantee
+that those observations are exactly seven days apart.
 
-Before the first workflow run, compare local and remote migration history:
+## Deployment
 
-```bash
-supabase migration list
-```
+`npm run build:vercel` runs tests, type checking, lint, migration guards and the
+Next.js production build. In the Vercel Production environment it applies
+tracked Supabase migrations before building. Preview builds never migrate the
+production database.
 
-If `20260830110000` appears only locally but its tables, view and functions
-already exist because the removed HTTP migration route executed the SQL, record
-that one existing migration without rerunning it:
-
-```bash
-supabase migration repair --status applied 20260830110000
-supabase migration list
-```
-
-Only use `migration repair` after confirming the schema objects already exist.
-Subsequent migrations are applied automatically by the Vercel Production build.
-
-On every push to `main`, Vercel runs the complete production pipeline and only
-publishes a successful build. Keep production migrations backward compatible
-with the currently running application because the migration is applied during
-the build, before the replacement deployment becomes live.
-
-Create a public Blob store and connect it to the Vercel project. Vercel injects
-`BLOB_READ_WRITE_TOKEN` for the connected environments. During collection,
-retailer product images are copied to immutable paths under `product-images/`
-before the Blob URL is saved to Supabase. Existing products move to Blob the
-next time their retailer collector runs. If Blob is not configured or one image
-cannot be copied, that offer keeps its retailer image URL so price collection
-can still complete.
-
-`vercel.json` runs Woolworths at `17:10 UTC` and PAK'nSAVE at `17:25 UTC`
-each day. That is early morning in Auckland; Vercel cron schedules are always
-UTC. Cron invocations run only on the production deployment.
-
-Vercel sends `CRON_SECRET` as an authorization bearer token for scheduled
-invocations. Both cron routes fail closed with HTTP 401 when the variable is
-missing or the token does not match.
-
-For a manual production check:
+Vercel sends `CRON_SECRET` as the bearer token for scheduled calls. Manual
+checks use the same authorization:
 
 ```bash
 curl -H "Authorization: Bearer $CRON_SECRET" \
   https://your-project.vercel.app/api/cron/woolworths
 
 curl -H "Authorization: Bearer $CRON_SECRET" \
-  https://your-project.vercel.app/api/cron/paknsave
+  https://your-project.vercel.app/api/cron/supermarkets
 ```
 
-The read-only readiness endpoint verifies that the expected database RPC and
-view exist and that `current_deals` is readable:
-
-```bash
-curl https://your-project.vercel.app/api/health/ready
-```
-
-It returns HTTP 200 only when the application and database schema are ready;
-otherwise it returns HTTP 503. The Vercel Production build runs the same check
-directly against the production Supabase environment before `next build`.
-
-Never add a route such as `/api/internal/apply-migration`. If an old immutable
-Preview Deployment contains one, remove that deployment from Vercel rather than
-reusing or exposing the route.
-
-## Selecting the PAK'nSAVE store
-
-The first configured store is PAK'nSAVE Royal Oak. Set `PAKNSAVE_STORE_ID` to
-an exact store UUID when changing stores. `PAKNSAVE_STORE_QUERY` is a readable
-fallback used to resolve a store from the live PAK'nSAVE store list. The
-collector records the upstream physical address and refuses to finalize a
-snapshot when pagination exceeds `PAKNSAVE_MAX_PAGES`. Because PAK'nSAVE caps
-broad searches at 1,000 results, the collector automatically partitions a
-capped response by the store's top-level categories, deduplicates the products,
-and verifies every partition before replacing the current snapshot.
-
-## Selecting another Woolworths store
-
-Without credentials or cookies, Woolworths currently returns Glenfield as the
-anonymous fulfilment context. To intentionally collect a different selected
-store, set `WOOLWORTHS_COOKIE` to a server-only cookie header from a browser
-session after choosing that store. Never commit or log it.
-
-The collector verifies the fulfilment store on every page and aborts if the
-context changes mid-run.
+Create a public Vercel Blob store if retailer images should be copied to stable
+URLs. If Blob is unavailable, price ingestion continues with the upstream image
+URL.
 
 ## Checks
 
 ```bash
 npm test
 npm run typecheck
+npm run lint
 npm run build
+npm run stores:plan
+npx tsx scripts/audit-comparisons.ts 0
+# With a local production server running on port 3100:
+npx tsx scripts/verify-comparison-app.ts
 ```
 
-The dashboard reads `/api/deals`. Product details are available at
-`/api/products/:id`. Both endpoints report `meta.source` as `database`,
-`local-json`, or `demo`.
+The test suite executes all SQL migrations against an isolated in-memory
+Postgres engine (PGlite). It verifies atomic publication, incomplete-batch
+rejection, idempotent finalization, weekly retention, failed-worker fencing and
+store isolation without needing production credentials.

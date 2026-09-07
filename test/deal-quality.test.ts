@@ -95,6 +95,24 @@ describe('strong-deal qualification', () => {
     assert.equal(isStrongDeal(candidate), true);
   });
 
+  it('can use the one retained prior weekly observation', () => {
+    const candidate = deal({
+      retailer: "PAK'nSAVE",
+      price: 6,
+      regularPrice: 6,
+      low90d: 6,
+      history: [
+        { date: 'Prior week', price: 8 },
+        { date: 'This week', price: 6 },
+      ],
+    });
+
+    assert.deepEqual(historicalDiscountEvidence(candidate), {
+      baseline: 8,
+      discountPercent: 25,
+    });
+  });
+
   it('uses shopper-facing half-price labels with a rounding tolerance', () => {
     assert.equal(promotionLabelForDiscount(48), 'Half price');
     assert.equal(promotionLabelForDiscount(52), 'Half price');

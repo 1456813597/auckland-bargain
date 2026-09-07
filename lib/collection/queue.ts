@@ -1,0 +1,204 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '../../db/supabase';
+import { ingestOffers } from '../ingestion/supabase';
+import { nzWeekStart } from '../weekly-history';
+import {
+  collectRegisteredStore,
+  assertRegisteredCollection,
+} from './registered-collector';
+import {
+  parseStoreRegistry,
+  retailerDefinitions,
+  type RegisteredRetailer,
+  type RegisteredStore,
+  type StoreRegistry,
+} from './store-registry';
+
+export type QueueDatabase = Pick<SupabaseClient, 'rpc'>;
+export type QueuedCollection = {
+  jobId: number;
+  runId: number;
+  attempt: number;
+  weekStart: string;
+  configVersion: number;
+  store: RegisteredStore;
+};
+
+function positiveId(value: unknown, name: string) {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1)
+    throw new Error(`Queue returned an invalid ${name}.`);
+  return value;
+}
+
+export function parseQueuedCollection(value: unknown): QueuedCollection {
+  if (!value || typeof value !== 'object')
+    throw new Error('Queue returned an invalid claim.');
+  const claim = value as Record<string, unknown>;
+  const [store] = parseStoreRegistry({
+    schemaVersion: 1,
+    stores: [claim.store],
+  }).stores;
+  if (
+    typeof claim.weekStart !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(claim.weekStart) ||
+    nzWeekStart(`${claim.weekStart}T12:00:00Z`) !== claim.weekStart
+  )
+    throw new Error('Queue returned an invalid NZ week.');
+  const attempt = positiveId(claim.attempt, 'attempt');
+  if (attempt > 3) throw new Error('Queue returned too many attempts.');
+  return {
+    jobId: positiveId(claim.jobId, 'job id'),
+    runId: positiveId(claim.runId, 'run id'),
+    configVersion: positiveId(claim.configVersion, 'configuration version'),
+    attempt,
+    weekStart: claim.weekStart,
+    store,
+  };
+}
+
+async function rpc(
+  database: QueueDatabase,
+  name: string,
+  parameters: Record<string, unknown> = {},
+): Promise<unknown> {
+  const { data, error } = await database.rpc(name, parameters);
+  if (error) throw new Error(`${name}: ${error.message}`);
+  return data;
+}
+
+export async function syncCollectionTargets(
+  registry: StoreRegistry,
+  database: Pick<SupabaseClient, 'from'> = getSupabaseAdmin(),
+) {
+  // Validate the entire input before the first write. This is an upsert, not a
+  // deletion/replacement of targets managed outside this manifest.
+  const targets = parseStoreRegistry(registry).stores.map((store) => ({
+    id: store.id,
+    retailer_slug: store.retailer,
+    source_store_id: store.sourceStoreId,
+    name: store.name,
+    city: store.city,
+    address: store.address ?? null,
+    store_origin: store.storeOrigin ?? null,
+    cookie_env: store.cookieEnv ?? null,
+    scope: store.scope,
+    enabled: store.enabled,
+    access_status: store.access.status,
+    access_reference: store.access.reference ?? null,
+    access_expires_at: store.access.expiresAt ?? null,
+  }));
+  for (let offset = 0; offset < targets.length; offset += 250) {
+    const { error } = await database
+      .from('collection_targets')
+      .upsert(targets.slice(offset, offset + 250), { onConflict: 'id' });
+    if (error)
+      throw new Error(
+        `Sync collection targets: ${error.message}. Previous successful batches may already be applied; rerunning is safe.`,
+      );
+  }
+  return { synced: targets.length };
+}
+
+export async function enqueueWeeklyCollections(
+  database: QueueDatabase = getSupabaseAdmin(),
+  retailer?: RegisteredRetailer,
+) {
+  return rpc(database, 'enqueue_weekly_collection_jobs', {
+    p_retailer_slug: retailer ?? null,
+  });
+}
+
+export async function getCollectionQueueStatus(
+  database: QueueDatabase = getSupabaseAdmin(),
+) {
+  return rpc(database, 'collection_queue_status');
+}
+
+const websites: Record<RegisteredRetailer, string> = {
+  woolworths: 'https://www.woolworths.co.nz/',
+  paknsave: 'https://www.paknsave.co.nz/',
+  newworld: 'https://www.newworld.co.nz/',
+  foursquare: 'https://www.foursquare.co.nz/',
+  freshchoice: 'https://www.freshchoice.co.nz/',
+  supervalue: 'https://www.supervalue.co.nz/',
+};
+
+export async function processOneCollectionJob(
+  options: {
+    database?: QueueDatabase;
+    environment?: Record<string, string | undefined>;
+    retailer?: RegisteredRetailer;
+    collect?: typeof collectRegisteredStore;
+    ingest?: typeof ingestOffers;
+  } = {},
+) {
+  const database = options.database ?? getSupabaseAdmin();
+  const raw = await rpc(database, 'claim_collection_job', {
+    p_retailer_slug: options.retailer ?? null,
+  });
+  if (raw === null) return { status: 'idle' as const };
+  // An invalid database claim is never sent to an upstream source. If its
+  // identity cannot be safely decoded, the lease reaper recovers the job.
+  const job = parseQueuedCollection(raw);
+  const identity = {
+    jobId: job.jobId,
+    runId: job.runId,
+    targetId: job.store.id,
+    attempt: job.attempt,
+  };
+  try {
+    const valid = await rpc(database, 'collection_job_access_valid', {
+      p_job_id: job.jobId,
+      p_run_id: job.runId,
+    });
+    if (valid !== true)
+      throw new Error(
+        'Job lease, target configuration or source access changed before execution.',
+      );
+    const collection = await (options.collect ?? collectRegisteredStore)(
+      job.store,
+      { environment: options.environment ?? process.env },
+    );
+    assertRegisteredCollection(job.store, collection);
+    if (
+      collection.offers.some(
+        (offer) => nzWeekStart(offer.collectedAt) !== job.weekStart,
+      )
+    )
+      throw new Error('Collected observations belong to another NZ week.');
+    await (options.ingest ?? ingestOffers)({
+      runId: job.runId,
+      retailer: {
+        slug: job.store.retailer,
+        name: retailerDefinitions[job.store.retailer].name,
+        website: websites[job.store.retailer],
+      },
+      store: collection.store,
+      offers: collection.offers,
+    });
+    // The DB outcome trigger commits job success with the prices; there is no
+    // second "ack" request that could lose a completed job after a crash.
+    return {
+      ...identity,
+      status: 'succeeded' as const,
+      offers: collection.offers.length,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Collection failed';
+    const status = await rpc(database, 'fail_collection_job', {
+      p_job_id: job.jobId,
+      p_run_id: job.runId,
+      p_error: message.slice(0, 2000),
+    });
+    if (status === 'succeeded')
+      return {
+        ...identity,
+        status: 'succeeded' as const,
+        recoveredCommittedResult: true,
+      };
+    if (status !== 'retry' && status !== 'failed' && status !== 'cancelled')
+      throw new Error('Queue returned an invalid failure outcome.');
+    return { ...identity, status, error: message };
+  }
+}

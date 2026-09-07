@@ -5,6 +5,17 @@ export type CollectorStore = {
   address?: string | null;
 };
 
+export type CollectionScope = 'specials' | 'catalogue';
+
+export type CompleteCollection = {
+  store: CollectorStore;
+  offers: RawOffer[];
+  pagesCollected: number;
+  totalItemsReported: number;
+  scope?: CollectionScope;
+  unpricedItems?: number;
+};
+
 export type RawOffer = {
   sourceProductId: string;
   sourceName: string;

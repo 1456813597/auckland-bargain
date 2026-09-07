@@ -75,6 +75,10 @@ type SpecialsResponse = {
 export type PaknsaveCollectorOptions = {
   webOrigin?: string;
   apiOrigin?: string;
+  retailerSlug?: string;
+  retailerName?: string;
+  bannerCode?: string;
+  productUrlSuffix?: string;
   storeId?: string;
   storeQuery?: string;
   city?: string;
@@ -124,11 +128,12 @@ function bestPromotion(product: PaknsaveProduct) {
 function storeToCollectorStore(
   store: PaknsaveStore,
   cityOverride?: string,
+  retailerName = "PAK'nSAVE",
 ): CollectorStore {
   const sourceStoreId = clean(store.id);
   const name = clean(store.name);
   if (!sourceStoreId || !name) {
-    throw new Error("PAK'nSAVE returned a store without an id or name.");
+    throw new Error(`${retailerName} returned a store without an id or name.`);
   }
 
   return {
@@ -137,7 +142,7 @@ function storeToCollectorStore(
     city:
       clean(cityOverride) ??
       clean(store.physicalAddress?.cityName) ??
-      'Auckland',
+      'New Zealand',
     address: clean(store.address),
   };
 }
@@ -146,6 +151,10 @@ export function toPaknsaveOffer(
   product: PaknsaveProduct,
   collectedAt: Date,
   webOrigin = DEFAULT_WEB_ORIGIN,
+  retailer: {
+    name: string;
+    productUrlSuffix: string;
+  } = { name: "PAK'nSAVE", productUrlSuffix: 'pns' },
 ): RawOffer | null {
   const sourceProductId = clean(product.productId);
   const sourceName = clean(product.name) ?? clean(product.displayName);
@@ -189,7 +198,7 @@ export function toPaknsaveOffer(
       ? currentPriceCents
       : null;
 
-  let promotionText = "PAK'nSAVE special";
+  let promotionText = `${retailer.name} special`;
   if (hasMultiBuy) {
     promotionText =
       String(multiBuyQuantity) +
@@ -198,7 +207,7 @@ export function toPaknsaveOffer(
   } else if (isMemberPrice) {
     promotionText = 'Club+ member price';
   } else if (product.decalCode === '6000' || promotion?.decal === '6000') {
-    promotionText = "PAK'nSAVE Extra Low";
+    promotionText = `${retailer.name} Extra Low`;
   }
 
   return {
@@ -218,7 +227,7 @@ export function toPaknsaveOffer(
       webOrigin +
       '/shop/product/' +
       sourceProductId.toLocaleLowerCase('en-NZ').replaceAll('-', '_') +
-      'pns',
+      retailer.productUrlSuffix,
     regularPriceCents: nonLoyaltyPriceCents ?? currentPriceCents,
     // singlePrice.price is the amount charged when the shopper buys one item.
     // A multi-buy rewardValue is the total charged only after its threshold is
@@ -233,10 +242,13 @@ export function toPaknsaveOffer(
 }
 
 export class PaknsaveCollector implements RetailerCollector {
-  readonly retailerSlug = 'paknsave';
+  readonly retailerSlug: string;
 
   private readonly webOrigin: string;
   private readonly apiOrigin: string;
+  private readonly retailerName: string;
+  private readonly bannerCode: string;
+  private readonly productUrlSuffix: string;
   private readonly storeId?: string;
   private readonly storeQuery: string;
   private readonly city?: string;
@@ -254,6 +266,11 @@ export class PaknsaveCollector implements RetailerCollector {
   constructor(options: PaknsaveCollectorOptions = {}) {
     this.webOrigin = options.webOrigin ?? DEFAULT_WEB_ORIGIN;
     this.apiOrigin = options.apiOrigin ?? DEFAULT_API_ORIGIN;
+    this.retailerSlug = clean(options.retailerSlug) ?? 'paknsave';
+    this.retailerName = clean(options.retailerName) ?? "PAK'nSAVE";
+    this.bannerCode =
+      clean(options.bannerCode)?.toLocaleUpperCase('en-NZ') ?? 'PNS';
+    this.productUrlSuffix = clean(options.productUrlSuffix) ?? 'pns';
     this.storeId = clean(options.storeId) ?? undefined;
     this.storeQuery = clean(options.storeQuery) ?? 'Royal Oak';
     this.city = clean(options.city) ?? undefined;
@@ -287,7 +304,8 @@ export class PaknsaveCollector implements RetailerCollector {
         const retryable = response.status === 429 || response.status >= 500;
         if (!retryable || attempt === this.retries) {
           throw new Error(
-            "PAK'nSAVE " +
+            this.retailerName +
+              ' ' +
               operation +
               ' failed with HTTP ' +
               String(response.status) +
@@ -295,7 +313,7 @@ export class PaknsaveCollector implements RetailerCollector {
           );
         }
         lastError = new Error(
-          "Retryable PAK'nSAVE HTTP " + String(response.status) + '.',
+          `Retryable ${this.retailerName} HTTP ${String(response.status)}.`,
         );
       } catch (error) {
         lastError = error;
@@ -309,7 +327,7 @@ export class PaknsaveCollector implements RetailerCollector {
 
     const message =
       lastError instanceof Error ? lastError.message : 'Unknown request error';
-    throw new Error("PAK'nSAVE " + operation + ' failed: ' + message);
+    throw new Error(`${this.retailerName} ${operation} failed: ${message}`);
   }
 
   private async authenticate() {
@@ -334,7 +352,9 @@ export class PaknsaveCollector implements RetailerCollector {
     );
     const session = (await response.json()) as AnonymousSession;
     if (!clean(session.access_token)) {
-      throw new Error("PAK'nSAVE anonymous authentication returned no token.");
+      throw new Error(
+        `${this.retailerName} anonymous authentication returned no token.`,
+      );
     }
 
     this.accessToken = session.access_token;
@@ -407,11 +427,11 @@ export class PaknsaveCollector implements RetailerCollector {
   private totalPages(response: SpecialsResponse) {
     const totalPages = response.totalPages ?? response.numberOfPages ?? 1;
     if (!Number.isSafeInteger(totalPages) || totalPages < 1) {
-      throw new Error("PAK'nSAVE returned an invalid page count.");
+      throw new Error(`${this.retailerName} returned an invalid page count.`);
     }
     if (totalPages > this.maxPages) {
       throw new Error(
-        "PAK'nSAVE collection needs more than the configured " +
+        `${this.retailerName} collection needs more than the configured ` +
           String(this.maxPages) +
           ' pages.',
       );
@@ -450,16 +470,50 @@ export class PaknsaveCollector implements RetailerCollector {
     return { products, pagesCollected: totalPages };
   }
 
-  async getStores() {
+  private async storeDirectory() {
     const response = await this.apiRequest<{ stores?: PaknsaveStore[] }>(
       '/v1/edge/store',
     );
     const candidates = (response.stores ?? []).filter(
       (store) =>
-        store.banner?.toLocaleUpperCase('en-NZ') === 'PNS' &&
+        store.banner?.toLocaleUpperCase('en-NZ') === this.bannerCode &&
         store.physicalActive !== false &&
         store.onlineActive !== false,
     );
+
+    const ids = new Set<string>();
+    for (const candidate of candidates) {
+      const store = storeToCollectorStore(
+        candidate,
+        undefined,
+        this.retailerName,
+      );
+      if (ids.has(store.sourceStoreId))
+        throw new Error(`${this.retailerName} returned duplicate store ids.`);
+      ids.add(store.sourceStoreId);
+      const region = clean(candidate.region)?.toLocaleUpperCase('en-NZ');
+      if (region !== 'SI' && region !== 'NI')
+        throw new Error(
+          `${this.retailerName} returned an unknown store region.`,
+        );
+      this.storeRegions.set(store.sourceStoreId, region);
+    }
+    if (!candidates.length)
+      throw new Error(
+        `${this.retailerName} returned no active online store directory.`,
+      );
+    return candidates;
+  }
+
+  // Online-active directory coverage is not a claim about every physical shop.
+  async getAllStores() {
+    return (await this.storeDirectory()).map((store) =>
+      storeToCollectorStore(store, undefined, this.retailerName),
+    );
+  }
+
+  async getStores() {
+    const candidates = await this.storeDirectory();
 
     let selected: PaknsaveStore | undefined;
     if (this.storeId) {
@@ -480,15 +534,14 @@ export class PaknsaveCollector implements RetailerCollector {
     if (!selected) {
       const selector = this.storeId ?? this.storeQuery;
       throw new Error(
-        "Could not find an active PAK'nSAVE store for " + selector + '.',
+        `Could not find an active ${this.retailerName} store for ${selector}.`,
       );
     }
 
-    const collectorStore = storeToCollectorStore(selected, this.city);
-    const region = clean(selected.region)?.toLocaleUpperCase('en-NZ');
-    this.storeRegions.set(
-      collectorStore.sourceStoreId,
-      region === 'SI' ? 'SI' : 'NI',
+    const collectorStore = storeToCollectorStore(
+      selected,
+      this.city,
+      this.retailerName,
     );
     return [collectorStore];
   }
@@ -517,7 +570,7 @@ export class PaknsaveCollector implements RetailerCollector {
       pagesCollected = collection.pagesCollected;
       if (reportedTotal > 0 && products.size !== reportedTotal) {
         throw new Error(
-          `PAK'nSAVE reported ${reportedTotal} specials but returned ${products.size}.`,
+          `${this.retailerName} reported ${reportedTotal} specials but returned ${products.size}.`,
         );
       }
     } else {
@@ -527,7 +580,7 @@ export class PaknsaveCollector implements RetailerCollector {
       ).filter(([, count]) => Number.isSafeInteger(count) && count > 0);
       if (categories.length === 0) {
         throw new Error(
-          "PAK'nSAVE capped the search results without returning category facets.",
+          `${this.retailerName} capped the search results without returning category facets.`,
         );
       }
 
@@ -544,12 +597,12 @@ export class PaknsaveCollector implements RetailerCollector {
         const categoryTotal = Math.max(0, categoryFirstPage.totalHits ?? 0);
         if (categoryTotal >= SEARCH_RESULT_CAP) {
           throw new Error(
-            `PAK'nSAVE category "${category}" is still capped at ${categoryTotal} results.`,
+            `${this.retailerName} category "${category}" is still capped at ${categoryTotal} results.`,
           );
         }
         if (categoryTotal !== facetCount) {
           throw new Error(
-            `PAK'nSAVE category "${category}" changed from ${facetCount} to ${categoryTotal} results during collection.`,
+            `${this.retailerName} category "${category}" changed from ${facetCount} to ${categoryTotal} results during collection.`,
           );
         }
 
@@ -562,7 +615,7 @@ export class PaknsaveCollector implements RetailerCollector {
         pagesCollected += categoryCollection.pagesCollected - 1;
         if (categoryCollection.products.size !== categoryTotal) {
           throw new Error(
-            `PAK'nSAVE category "${category}" reported ${categoryTotal} specials but returned ${categoryCollection.products.size}.`,
+            `${this.retailerName} category "${category}" reported ${categoryTotal} specials but returned ${categoryCollection.products.size}.`,
           );
         }
         for (const [productId, product] of categoryCollection.products) {
@@ -572,11 +625,16 @@ export class PaknsaveCollector implements RetailerCollector {
     }
 
     const offers = [...products.values()]
-      .map((product) => toPaknsaveOffer(product, collectedAt, this.webOrigin))
+      .map((product) =>
+        toPaknsaveOffer(product, collectedAt, this.webOrigin, {
+          name: this.retailerName,
+          productUrlSuffix: this.productUrlSuffix,
+        }),
+      )
       .filter((offer): offer is RawOffer => Boolean(offer));
 
     if (offers.length === 0) {
-      throw new Error("PAK'nSAVE returned no usable specials.");
+      throw new Error(`${this.retailerName} returned no usable specials.`);
     }
 
     return {

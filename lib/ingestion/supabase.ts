@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { getSupabaseAdmin } from '@/db/supabase';
 import type { CollectorStore, RawOffer } from '@/lib/collectors/types';
+import { reconcileProductMatches } from '@/lib/matching/supabase';
 import { mirrorOfferImages } from '@/lib/storage/product-images';
 
 const WRITE_BATCH_SIZE = 250;
@@ -67,7 +68,8 @@ export async function markCollectionRunFailed(runId: number, error: unknown) {
       finished_at: new Date().toISOString(),
       error_message: message.slice(0, 2_000),
     })
-    .eq('id', runId);
+    .eq('id', runId)
+    .eq('status', 'running');
 
   fail('Mark collection run failed', updateError);
 }
@@ -181,12 +183,18 @@ export async function ingestOffers(input: {
     input.offers,
   );
   const supabase = getSupabaseAdmin();
+  const matching = await reconcileProductMatches({
+    supabase,
+    retailerSlug: input.retailer.slug,
+    productIds,
+    offers: input.offers,
+  });
 
   for (const batch of chunks(input.offers)) {
-    const { error } = await supabase.from('current_offers').upsert(
-      batch.map((offer) => ({
+    const { error } = await supabase.rpc('stage_collection_offers', {
+      p_run_id: input.runId,
+      p_offers: batch.map((offer) => ({
         retailer_product_id: productIds.get(offer.sourceProductId)!,
-        store_id: storeId,
         regular_price_cents: offer.regularPriceCents,
         promo_price_cents: offer.promoPriceCents,
         member_price_cents: offer.memberPriceCents,
@@ -195,13 +203,10 @@ export async function ingestOffers(input: {
         valid_until: offer.validUntil?.toISOString() ?? null,
         collected_at: offer.collectedAt.toISOString(),
         content_hash: offerHash(offer),
-        active: true,
-        last_seen_run_id: input.runId,
       })),
-      { onConflict: 'retailer_product_id,store_id' },
-    );
+    });
 
-    fail('Upsert current offers', error);
+    fail('Stage collection offers', error);
   }
 
   const { error } = await supabase.rpc('finalize_collection_run', {
@@ -215,5 +220,7 @@ export async function ingestOffers(input: {
     retailerId,
     storeId,
     offersSeen: input.offers.length,
+    matchedProducts: matching.matched,
+    reviewsQueued: matching.reviewQueued,
   };
 }

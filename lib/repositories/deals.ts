@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from '@/db/supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   advertisedDiscountPercent,
   dealEvidencePercent,
@@ -7,11 +8,12 @@ import {
   PAKNSAVE_MIN_HISTORICAL_DISCOUNT,
   promotionLabelForDiscount,
   selectStrongDeals,
-  WOOLWORTHS_MIN_ADVERTISED_DISCOUNT,
 } from '@/lib/deal-quality';
 import type { Deal, PricePoint } from '@/lib/deals';
 import { paknsaveProductImageUrl } from '@/lib/product-images';
-import { shopperFacingPriceCents } from '@/lib/retailer-pricing';
+import { multiBuyOffer, shopperFacingPriceCents } from '@/lib/retailer-pricing';
+import { nzWeekStart } from '@/lib/weekly-history';
+import { scopedOfferId } from '@/lib/offer-identity';
 
 type CurrentDealRow = {
   offer_id: number;
@@ -22,19 +24,30 @@ type CurrentDealRow = {
   brand: string | null;
   category: string | null;
   size: string | null;
+  gtin: string | null;
   image_url: string | null;
+  source_url: string | null;
   retailer_slug: string;
   retailer_name: string;
   store_name: string;
+  city: string;
   regular_price_cents: number | null;
   effective_price_cents: number;
   promotion_type: string | null;
   promotion_text: string | null;
   advertised_discount_percent: number;
   collected_at: string;
+  canonical_slug?: string | null;
+  canonical_name?: string | null;
+  canonical_brand?: string | null;
+  canonical_size?: string | null;
+  canonical_category?: string | null;
+  match_confidence?: number | null;
+  match_method?: 'gtin' | 'attributes' | 'seed' | 'manual' | null;
 };
 
 type HistoryRow = {
+  id: number;
   retailer_product_id: number;
   store_id: number;
   regular_price_cents: number | null;
@@ -55,88 +68,112 @@ function historyPoints(
   currentPriceCents: number,
   collectedAt: string,
 ): PricePoint[] {
-  const points = history.map((point) => ({
-    date: dateLabel.format(new Date(point.observed_at)),
-    price:
-      shopperFacingPriceCents({
-        retailerSlug,
-        promotionText: point.promotion_text,
-        regularPriceCents: point.regular_price_cents,
-        effectivePriceCents: point.effective_price_cents,
-      }) / 100,
-  }));
+  const points = history
+    .toSorted((left, right) =>
+      left.observed_at.localeCompare(right.observed_at),
+    )
+    .map((point) => ({
+      date: dateLabel.format(new Date(point.observed_at)),
+      observedAt: point.observed_at,
+      weekStart: nzWeekStart(point.observed_at),
+      price:
+        (multiBuyOffer(point.promotion_text)?.unitPriceCents ??
+          shopperFacingPriceCents({
+            retailerSlug,
+            promotionText: point.promotion_text,
+            regularPriceCents: point.regular_price_cents,
+            effectivePriceCents: point.effective_price_cents,
+          })) / 100,
+    }));
 
   if (points.length === 0) {
     points.push({
       date: dateLabel.format(new Date(collectedAt)),
+      observedAt: collectedAt,
+      weekStart: nzWeekStart(collectedAt),
       price: currentPriceCents / 100,
     });
   }
-  return points;
+  return points.slice(-2);
 }
 
-export async function getCurrentDeals() {
+const DATABASE_PAGE_SIZE = 500;
+
+export async function readCurrentRows(
+  supabase: SupabaseClient = getSupabaseAdmin(),
+) {
+  const rows: CurrentDealRow[] = [];
+  let cursor = 0;
+  for (;;) {
+    const result = await supabase
+      .from('current_deals')
+      .select('*')
+      .gt('offer_id', cursor)
+      .order('offer_id', { ascending: true })
+      .limit(DATABASE_PAGE_SIZE);
+    if (result.error) {
+      throw new Error(`Read current offers: ${result.error.message}`);
+    }
+    const page = (result.data ?? []) as CurrentDealRow[];
+    if (!page.length) break;
+    rows.push(...page);
+    const next = page.at(-1)!.offer_id;
+    if (next <= cursor)
+      throw new Error('Current offers pagination did not advance');
+    cursor = next;
+  }
+  return rows;
+}
+
+export async function readOfferHistory(
+  supabase: SupabaseClient,
+  productIds: number[],
+) {
+  const batches: number[][] = [];
+  for (let index = 0; index < productIds.length; index += 100)
+    batches.push(productIds.slice(index, index + 100));
+  const history: HistoryRow[] = [];
+  for (let index = 0; index < batches.length; index += 4) {
+    const pages = await Promise.all(
+      batches.slice(index, index + 4).map(async (batch) => {
+        const rows: HistoryRow[] = [];
+        let cursor = 0;
+        for (;;) {
+          const { data, error } = await supabase
+            .from('offer_history')
+            .select(
+              'id,retailer_product_id,store_id,regular_price_cents,effective_price_cents,promotion_text,observed_at',
+            )
+            .in('retailer_product_id', batch)
+            .gt('id', cursor)
+            .order('id')
+            .limit(DATABASE_PAGE_SIZE);
+          if (error) throw new Error(`Read offer history: ${error.message}`);
+          const page = (data ?? []) as HistoryRow[];
+          if (!page.length) break;
+          rows.push(...page);
+          const next = page.at(-1)!.id;
+          if (next <= cursor)
+            throw new Error('Offer history pagination did not advance');
+          cursor = next;
+        }
+        return rows;
+      }),
+    );
+    for (const page of pages) history.push(...page);
+  }
+  return history;
+}
+
+async function getOffers(strongOnly: boolean) {
   const supabase = getSupabaseAdmin();
-  const [woolworthsResult, paknsaveResult] = await Promise.all([
-    supabase
-      .from('current_deals')
-      .select('*')
-      .eq('retailer_slug', 'woolworths')
-      .gte('advertised_discount_percent', WOOLWORTHS_MIN_ADVERTISED_DISCOUNT)
-      .order('advertised_discount_percent', { ascending: false })
-      .limit(500),
-    supabase
-      .from('current_deals')
-      .select('*')
-      .eq('retailer_slug', 'paknsave')
-      .order('advertised_discount_percent', { ascending: false })
-      .limit(1_000),
-  ]);
-
-  if (woolworthsResult.error) {
-    throw new Error(`Read Woolworths deals: ${woolworthsResult.error.message}`);
-  }
-  if (paknsaveResult.error) {
-    throw new Error(`Read PAK'nSAVE deals: ${paknsaveResult.error.message}`);
-  }
-
-  const rowsByOffer = new Map<number, CurrentDealRow>();
-  for (const row of [
-    ...(woolworthsResult.data ?? []),
-    ...(paknsaveResult.data ?? []),
-  ] as CurrentDealRow[]) {
-    rowsByOffer.set(row.offer_id, row);
-  }
-  const rows = [...rowsByOffer.values()];
+  const rows = await readCurrentRows();
   if (rows.length === 0) {
     return { deals: [] as Deal[], updatedAt: null as string | null };
   }
 
-  const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1_000);
   const productIds = [...new Set(rows.map((row) => row.retailer_product_id))];
-  const productIdBatches: number[][] = [];
-  for (let index = 0; index < productIds.length; index += 200) {
-    productIdBatches.push(productIds.slice(index, index + 200));
-  }
-  const historyResults = await Promise.all(
-    productIdBatches.map((batch) =>
-      supabase
-        .from('offer_history')
-        .select(
-          'retailer_product_id,store_id,regular_price_cents,effective_price_cents,promotion_text,observed_at',
-        )
-        .in('retailer_product_id', batch)
-        .gte('observed_at', cutoff.toISOString())
-        .order('observed_at', { ascending: true }),
-    ),
-  );
-  const historyData: HistoryRow[] = [];
-  for (const result of historyResults) {
-    if (result.error) {
-      throw new Error(`Read offer history: ${result.error.message}`);
-    }
-    historyData.push(...((result.data ?? []) as HistoryRow[]));
-  }
+  const historyData = await readOfferHistory(supabase, productIds);
 
   const historyByOffer = new Map<string, HistoryRow[]>();
   for (const point of historyData) {
@@ -163,18 +200,27 @@ export async function getCurrentDeals() {
     const regularPrice =
       (row.regular_price_cents ?? row.effective_price_cents) / 100;
     const average90d =
-      historicalPrices.length >= 3
+      historicalPrices.length >= 2
         ? historicalPrices.reduce((sum, price) => sum + price, 0) /
           historicalPrices.length
         : regularPrice;
     const deal: Deal = {
-      id: `${row.retailer_slug}-${row.source_product_id}`,
-      name: row.source_name,
-      size: row.size ?? 'See product details',
-      brand: row.brand ?? row.retailer_name,
-      category: row.category ?? 'Other',
+      id: scopedOfferId(
+        row.retailer_slug,
+        row.source_product_id,
+        `database:${row.store_id}`,
+      ),
+      sourceProductId: row.source_product_id,
+      retailerSlug: row.retailer_slug,
+      canonicalId: row.canonical_slug ?? undefined,
+      name: row.canonical_name ?? row.source_name,
+      size: row.canonical_size ?? row.size ?? 'See product details',
+      brand: row.canonical_brand ?? row.brand ?? '',
+      category: row.canonical_category ?? row.category ?? 'Other',
       retailer: row.retailer_name,
       store: row.store_name,
+      storeKey: `database:${row.store_id}`,
+      storeCity: row.city,
       price: currentPriceCents / 100,
       regularPrice,
       average90d,
@@ -184,7 +230,9 @@ export async function getCurrentDeals() {
         row.promotion_text ??
         (row.promotion_type === 'MEMBER_PRICE'
           ? 'Member price'
-          : `${row.retailer_name} special`),
+          : row.promotion_type === 'SPECIAL'
+            ? `${row.retailer_name} special`
+            : 'Observed price'),
       memberOnly: row.promotion_type === 'MEMBER_PRICE',
       imageUrl:
         (row.retailer_slug === 'paknsave'
@@ -192,7 +240,20 @@ export async function getCurrentDeals() {
           : null) ??
         row.image_url ??
         undefined,
-      color: row.retailer_slug === 'paknsave' ? '#f4b942' : '#83a977',
+      sourceUrl: row.source_url ?? undefined,
+      collectedAt: row.collected_at,
+      gtin: row.gtin ?? undefined,
+      matchConfidence: row.match_confidence ?? undefined,
+      matchMethod: row.match_method ?? undefined,
+      color:
+        {
+          foursquare: '#d71920',
+          freshchoice: '#57943a',
+          newworld: '#e31b23',
+          paknsave: '#f4b942',
+          supervalue: '#6f4b8b',
+          woolworths: '#83a977',
+        }[row.retailer_slug] ?? '#83a8a1',
       history,
     };
     const advertisedDiscount = advertisedDiscountPercent(deal);
@@ -205,19 +266,17 @@ export async function getCurrentDeals() {
           advertisedDiscount < PAKNSAVE_MIN_ADVERTISED_DISCOUNT &&
           historicalEvidence &&
           historicalEvidence.discountPercent >= PAKNSAVE_MIN_HISTORICAL_DISCOUNT
-        ? `${historicalEvidence.discountPercent}% below 90-day median`
+        ? `${historicalEvidence.discountPercent}% below prior weekly price`
         : null;
     if (evidencePromotion) deal.promotion = evidencePromotion;
     deal.score = Math.min(
       99,
       Math.round(
-        55 + dealEvidencePercent(deal) * 1.2 + (history.length >= 4 ? 5 : 0),
+        55 + dealEvidencePercent(deal) * 1.2 + (history.length >= 2 ? 5 : 0),
       ),
     );
     return deal;
   });
-
-  const strongDeals = selectStrongDeals(deals);
 
   const updatedAt = rows.reduce(
     (latest, row) =>
@@ -225,5 +284,13 @@ export async function getCurrentDeals() {
     null as string | null,
   );
 
-  return { deals: strongDeals, updatedAt };
+  return { deals: strongOnly ? selectStrongDeals(deals) : deals, updatedAt };
+}
+
+export async function getCurrentDeals() {
+  return getOffers(true);
+}
+
+export async function getCurrentOffers() {
+  return getOffers(false);
 }

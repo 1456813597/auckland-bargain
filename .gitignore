@@ -38,3 +38,5 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+/data/deals.json.lock
+/data/deals.json.*.tmp

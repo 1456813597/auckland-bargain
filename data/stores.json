@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "stores": [
+    {
+      "id": "woolworths-glenfield",
+      "retailer": "woolworths",
+      "sourceStoreId": "9171",
+      "name": "Woolworths Glenfield",
+      "city": "Auckland",
+      "address": "Glenfield",
+      "cookieEnv": "WOOLWORTHS_COOKIE",
+      "enabled": true,
+      "scope": "specials",
+      "access": { "status": "pending" }
+    },
+    {
+      "id": "paknsave-royal-oak",
+      "retailer": "paknsave",
+      "sourceStoreId": "e1925ea7-01bc-4358-ae7c-c6502da5ab12",
+      "name": "PAK'nSAVE Royal Oak",
+      "city": "Auckland",
+      "address": "691 Manukau Road, Royal Oak, Auckland, 1023",
+      "enabled": true,
+      "scope": "specials",
+      "access": { "status": "pending" }
+    },
+    {
+      "id": "newworld-metro-queen-st",
+      "retailer": "newworld",
+      "sourceStoreId": "60928d93-06fa-4d8f-92a6-8c359e7e846d",
+      "name": "New World Metro Queen St",
+      "city": "Auckland",
+      "address": "125 Queen Street, Auckland Central, Auckland, 1010",
+      "enabled": true,
+      "scope": "specials",
+      "access": { "status": "pending" }
+    },
+    {
+      "id": "foursquare-lancaster",
+      "retailer": "foursquare",
+      "sourceStoreId": "{B607A601-34F0-4441-8D6D-702490B58400}",
+      "name": "Four Square Lancaster",
+      "city": "Auckland",
+      "address": "209 Beach Haven Road, Beach Haven, Auckland 0626",
+      "enabled": true,
+      "scope": "specials",
+      "access": { "status": "pending" }
+    },
+    {
+      "id": "freshchoice-epsom",
+      "retailer": "freshchoice",
+      "sourceStoreId": "6108c002ec2866454c0198c4",
+      "name": "FreshChoice Epsom",
+      "city": "Auckland",
+      "address": "233A Green Lane West, Epsom, Auckland 1051",
+      "storeOrigin": "https://epsom.store.freshchoice.co.nz",
+      "enabled": true,
+      "scope": "catalogue",
+      "access": { "status": "pending" }
+    },
+    {
+      "id": "supervalue-milton",
+      "retailer": "supervalue",
+      "sourceStoreId": "5e75aaa26d8e6910a300272c",
+      "name": "SuperValue Milton",
+      "city": "Milton",
+      "address": "59 Union Street, Milton 9220",
+      "storeOrigin": "https://milton.store.supervalue.co.nz",
+      "enabled": true,
+      "scope": "catalogue",
+      "access": { "status": "pending" }
+    }
+  ]
+}

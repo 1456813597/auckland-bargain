@@ -45,12 +45,21 @@ describe('local deals snapshot', () => {
     });
 
     assert.ok(deal);
-    assert.equal(deal.id, 'woolworths-product-1');
+    assert.match(deal.id, /^woolworths-[a-f0-9]{24}$/);
+    assert.equal(deal.sourceProductId, 'product-1');
+    assert.equal(deal.retailerSlug, 'woolworths');
     assert.equal(deal.price, 4);
     assert.equal(deal.regularPrice, 5);
     assert.equal(deal.average90d, 5);
     assert.equal(deal.memberOnly, false);
-    assert.deepEqual(deal.history, [{ date: '03 Sept', price: 4 }]);
+    assert.deepEqual(deal.history, [
+      {
+        date: '03 Sept',
+        price: 4,
+        observedAt: collectedAt.toISOString(),
+        weekStart: '2026-08-31',
+      },
+    ]);
   });
 
   it('prefers a member price and updates the same-day history point', () => {
@@ -84,7 +93,14 @@ describe('local deals snapshot', () => {
     assert.ok(updated);
     assert.equal(updated.price, 3.25);
     assert.equal(updated.memberOnly, true);
-    assert.deepEqual(updated.history, [{ date: '03 Sept', price: 3.25 }]);
+    assert.deepEqual(updated.history, [
+      {
+        date: '03 Sept',
+        price: 3.25,
+        observedAt: collectedAt.toISOString(),
+        weekStart: '2026-08-31',
+      },
+    ]);
   });
 
   it('rejects incompatible snapshot versions', () => {
