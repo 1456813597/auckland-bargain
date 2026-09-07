@@ -141,6 +141,8 @@ Copy `.env.example` to `.env.local`. For database-backed collection set:
 - `SUPABASE_SECRET_KEY` (server-only; the legacy service-role name also works)
 - `CRON_SECRET` (at least 16 random characters)
 - `BLOB_READ_WRITE_TOKEN` for durable product images
+- `PRODUCT_IMAGE_MIRROR=off` to stop mirroring new images without unlinking the store
+- `PRODUCT_IMAGE_MIRROR_MONTHLY_UPLOADS` to cap Blob advanced operations per month (default 8000)
 
 Then run:
 
@@ -149,6 +151,25 @@ npm run dev
 ```
 
 Never prefix a Supabase secret with `NEXT_PUBLIC_` or commit `.env.local`.
+
+### Product image mirroring cost
+
+Vercel Blob bills `put`, `copy` and `list` as advanced operations, and the
+included monthly allowance is small (10,000 on Hobby, after which the store is
+locked for 30 days). Collection therefore never lists the store: whether an
+image is already mirrored is answered from the `product_image_mirrors` table,
+so a store whose images are all mirrored spends zero Blob operations, and the
+same product collected at a second store of the same banner spends none either.
+New uploads draw on a shared monthly budget; once it is used the collector keeps
+retailer image URLs rather than exceeding the plan.
+
+After deploying this schema for the first time, adopt blobs that were uploaded
+before the index existed, so they are not uploaded a second time:
+
+```bash
+npm run blob:index          # preview: one list pass, no writes
+npm run blob:index:adopt    # write the adopted rows
+```
 
 ### Local snapshot refresh
 

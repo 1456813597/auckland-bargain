@@ -78,6 +78,8 @@ npm ci
 | `SUPABASE_SERVICE_ROLE_KEY` | 旧版密钥名 | 仅作为上一个变量的兼容替代 |
 | `CRON_SECRET` | Cron Bearer Token | 至少 16 个字符 |
 | `BLOB_READ_WRITE_TOKEN` | 将商品图片复制到 Vercel Blob | 真实采集建议配置 |
+| `PRODUCT_IMAGE_MIRROR` | 设为 `off` 可停止镜像新图片 | 可选；默认开启 |
+| `PRODUCT_IMAGE_MIRROR_MONTHLY_UPLOADS` | 每个 UTC 月的 Blob 高级操作上限 | 可选；默认 8000 |
 | `WOOLWORTHS_COOKIE` | 可选的选店会话 Cookie | 仅服务端，禁止提交或打印 |
 | `PAKNSAVE_STORE_ID` | 精确的 PAK'nSAVE 门店 UUID | 可选；默认 Royal Oak |
 | `SITE_URL` | Metadata 的站点基址 | 生产环境应为正式 HTTPS URL |

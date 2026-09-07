@@ -129,7 +129,9 @@ async function upsertProducts(
 ) {
   const ids = new Map<string, number>();
   const supabase = getSupabaseAdmin();
-  const offersWithStoredImages = await mirrorOfferImages(retailerSlug, offers);
+  const offersWithStoredImages = await mirrorOfferImages(retailerSlug, offers, {
+    database: supabase,
+  });
 
   for (const batch of chunks(offersWithStoredImages)) {
     const { data, error } = await supabase
