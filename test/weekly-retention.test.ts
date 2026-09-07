@@ -7,9 +7,19 @@ test('production collectors run weekly and retain one prior observation', async 
   const vercel = JSON.parse(await readFile('vercel.json', 'utf8')) as {
     crons: Array<{ path: string; schedule: string }>;
   };
-  assert.equal(vercel.crons.length, 6);
-  assert.ok(vercel.crons.every((cron) => cron.schedule.endsWith('* * 0')));
-  assert.equal(new Set(vercel.crons.map((cron) => cron.path)).size, 6);
+  assert.equal(new Set(vercel.crons.map((cron) => cron.path)).size, 7);
+  // The registry-driven queue repeats through the week so backed-off retries
+  // land inside the same NZ week; it collects each store only once regardless.
+  const queue = vercel.crons.filter(
+    (cron) => cron.path === '/api/cron/collect',
+  );
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0].schedule, '0 * * * *');
+  const banners = vercel.crons.filter(
+    (cron) => cron.path !== '/api/cron/collect',
+  );
+  assert.equal(banners.length, 6);
+  assert.ok(banners.every((cron) => cron.schedule.endsWith('* * 0')));
   for (const retailer of [
     'paknsave',
     'newworld',

@@ -87,15 +87,48 @@ worker crashes, check the PID recorded in `data/deals.json.lock` and verify it h
 stopped before manually removing that specific lock. The runner does not infer
 that a long-running process is dead. This is not a distributed lease.
 
-## Production boundary
+## Durable queue and scheduled dispatch
 
-The existing Vercel cron routes still use their single-store environment
+`data/stores.json` is the reviewed manifest; `collection_targets` is the
+database copy the deployed queue actually reads. They are synchronised
+explicitly, never as a side effect of a request:
+
+```bash
+npm run queue:sync              # preview only, no writes
+npm run queue:sync -- --execute # upsert targets (identity fields are immutable)
+npm run queue:status
+npm run queue:enqueue
+npm run queue:work              # claim and run exactly one job
+```
+
+`/api/cron/collect` is the deployed form of `queue:enqueue` + `queue:work`,
+scheduled hourly in `vercel.json`. One invocation enqueues this NZ week's
+eligible targets, then claims at most `?limit=` jobs (default 3, maximum 10,
+optionally narrowed with `?retailer=`), stopping after a 120-second claim
+deadline so the remaining function budget belongs to the job already running.
+It never loops over the whole registry in one invocation, and it never syncs
+targets. A job the platform kills mid-collection stays `running` until the
+database lease reaper releases it after 15 minutes; a later invocation retries
+it under the same three-attempt budget with 5- and 10-minute backoff, which is
+why the schedule repeats through the week instead of firing once.
+
+Eligibility is decided in the database, not by the caller:
+`collection_target_block_reason` excludes disabled targets, pending/denied/
+expired access, catalogue scope on banners that do not support it, and a
+downgrade from an already-published catalogue to specials. Every bundled target
+is `access.status: pending`, so today the route enqueues nothing and requests no
+supermarket. The publication guard re-checks the lease, configuration version,
+store identity and NZ week inside the price-publishing transaction, so a target
+whose permission is revoked mid-run rolls back its prices and history.
+
+## Legacy production boundary
+
+The six per-banner Vercel cron routes still use their single-store environment
 configuration. They do **not** read this registry or apply its access gate;
 neither does the legacy `deals:refresh` source-selection path. Do not activate
-them without separately completing source-access review. Production fan-out
-needs a persisted registry, permission-aware job enqueue/claim, bounded workers,
-retry monitoring and a migration/deployment acceptance test. Do not loop over
-the whole registry inside one 300-second serverless invocation.
+them without separately completing source-access review. Retire each one as its
+store becomes an approved registry target, so a store is not collected by both
+paths in the same week.
 
 The local batch path was verified with fixtures and a blocked real-config run:
 pending FreshChoice access yielded no saves, a nonzero execution result, unchanged

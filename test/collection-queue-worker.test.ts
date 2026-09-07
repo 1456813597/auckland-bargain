@@ -30,10 +30,7 @@ const job = {
   store,
 };
 function client(
-  handler: (
-    name: string,
-    body: Record<string, unknown>,
-  ) => unknown | Promise<unknown>,
+  handler: (name: string, body: Record<string, unknown>) => unknown,
 ) {
   return createClient('https://queue.test', 'test-only', {
     auth: { persistSession: false, autoRefreshToken: false },
