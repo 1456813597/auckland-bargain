@@ -18,6 +18,8 @@
     "queue:status": "tsx scripts/collection-queue.ts status",
     "queue:enqueue": "tsx scripts/collection-queue.ts enqueue",
     "queue:work": "tsx scripts/collection-queue.ts work",
+    "blob:index": "tsx scripts/blob-image-index.ts",
+    "blob:index:adopt": "tsx scripts/blob-image-index.ts --execute",
     "typecheck": "next typegen && tsc --noEmit",
     "release:ready": "tsx scripts/check-release-readiness.ts",
     "lint": "oxlint",

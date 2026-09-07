@@ -6,6 +6,7 @@ type ReadinessRpcResult = {
   claimCollectionRun?: unknown;
   atomicWeeklySnapshots?: unknown;
   durableCollectionQueue?: unknown;
+  productImageMirrorIndex?: unknown;
   ready?: unknown;
 };
 
@@ -20,6 +21,7 @@ export type DatabaseReadiness = {
     currentDealsReadable: boolean;
     atomicWeeklySnapshots: boolean;
     durableCollectionQueue: boolean;
+    productImageMirrorIndex: boolean;
   };
   error?: string;
 };
@@ -37,6 +39,7 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
         currentDealsReadable: false,
         atomicWeeklySnapshots: false,
         durableCollectionQueue: false,
+        productImageMirrorIndex: false,
       },
       error: 'Supabase is not configured.',
     };
@@ -56,6 +59,7 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
         currentDealsReadable: false,
         atomicWeeklySnapshots: false,
         durableCollectionQueue: false,
+        productImageMirrorIndex: false,
       },
       error: `Database readiness RPC failed: ${error.message}`,
     };
@@ -66,6 +70,7 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
   const claimCollectionRun = rpc.claimCollectionRun === true;
   const atomicWeeklySnapshots = rpc.atomicWeeklySnapshots === true;
   const durableCollectionQueue = rpc.durableCollectionQueue === true;
+  const productImageMirrorIndex = rpc.productImageMirrorIndex === true;
   const rpcReady = rpc.ready === true;
   const { error: dealsError } = await supabase
     .from('current_deals')
@@ -78,7 +83,8 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
     claimCollectionRun &&
     currentDealsReadable &&
     atomicWeeklySnapshots &&
-    durableCollectionQueue;
+    durableCollectionQueue &&
+    productImageMirrorIndex;
 
   return {
     ready,
@@ -92,6 +98,7 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
       currentDealsReadable,
       atomicWeeklySnapshots,
       durableCollectionQueue,
+      productImageMirrorIndex,
     },
     ...(dealsError
       ? { error: `Current deals readiness query failed: ${dealsError.message}` }
