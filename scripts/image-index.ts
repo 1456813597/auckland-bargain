@@ -1,12 +1,11 @@
 import nextEnv from '@next/env';
-import { list } from '@vercel/blob';
-import { seedProductImageIndex } from '../lib/storage/product-images';
+import { adoptStoredImages } from '../lib/storage/product-images';
 
 const { loadEnvConfig } = nextEnv;
 loadEnvConfig(process.cwd());
 
-// Run once after deploying the mirror index, so blobs uploaded by the old
-// list-per-run collector are adopted instead of being uploaded a second time.
+// Run after restoring or moving the image volume, so files already on disk are
+// registered in the index instead of being downloaded from retailers again.
 async function main() {
   const args = process.argv.slice(2);
   let execute = false;
@@ -15,7 +14,7 @@ async function main() {
     else throw new Error(`Unknown flag ${flag}. Use --execute.`);
   }
 
-  const result = await seedProductImageIndex({ execute, list });
+  const result = await adoptStoredImages({ execute });
   console.log(JSON.stringify(result, null, 2));
 }
 

@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Self-contained server output: the Docker image copies `.next/standalone`
+  // and runs it with plain `node`, without installing dependencies again.
+  output: 'standalone',
   images: {
     remotePatterns: [
       {
@@ -22,11 +25,6 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'dtgxwmigmg3gc.cloudfront.net',
         pathname: '/imagery/assets/derivations/**',
-      },
-      {
-        protocol: 'https',
-        hostname: '*.public.blob.vercel-storage.com',
-        pathname: '/product-images/**',
       },
       {
         protocol: 'https',

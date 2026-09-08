@@ -4,22 +4,32 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 test('production collectors run weekly and retain one prior observation', async () => {
-  const vercel = JSON.parse(await readFile('vercel.json', 'utf8')) as {
-    crons: Array<{ path: string; schedule: string }>;
+  const schedule = JSON.parse(
+    await readFile('deploy/cron-jobs.json', 'utf8'),
+  ) as {
+    defaultTimezone: string;
+    jobs: Array<{
+      name: string;
+      path: string;
+      variable: string;
+      schedule: string;
+    }>;
   };
-  assert.equal(new Set(vercel.crons.map((cron) => cron.path)).size, 7);
+  // New Zealand time, because the schedule container renders this table with
+  // that timezone; a UTC expression would drift by an hour twice a year.
+  assert.equal(schedule.defaultTimezone, 'Pacific/Auckland');
+  assert.equal(new Set(schedule.jobs.map((job) => job.path)).size, 7);
+  assert.equal(new Set(schedule.jobs.map((job) => job.variable)).size, 7);
   // The registry-driven queue repeats through the week so backed-off retries
   // land inside the same NZ week; it collects each store only once regardless.
-  const queue = vercel.crons.filter(
-    (cron) => cron.path === '/api/cron/collect',
-  );
+  const queue = schedule.jobs.filter((job) => job.path === '/api/cron/collect');
   assert.equal(queue.length, 1);
   assert.equal(queue[0].schedule, '0 * * * *');
-  const banners = vercel.crons.filter(
-    (cron) => cron.path !== '/api/cron/collect',
+  const banners = schedule.jobs.filter(
+    (job) => job.path !== '/api/cron/collect',
   );
   assert.equal(banners.length, 6);
-  assert.ok(banners.every((cron) => cron.schedule.endsWith('* * 0')));
+  assert.ok(banners.every((job) => job.schedule.endsWith('* * 1')));
   for (const retailer of [
     'paknsave',
     'newworld',
@@ -28,8 +38,8 @@ test('production collectors run weekly and retain one prior observation', async 
     'supervalue',
   ]) {
     assert.ok(
-      vercel.crons.some(
-        (cron) => cron.path === `/api/cron/supermarkets?retailer=${retailer}`,
+      schedule.jobs.some(
+        (job) => job.path === `/api/cron/supermarkets?retailer=${retailer}`,
       ),
     );
   }

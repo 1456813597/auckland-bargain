@@ -1,4 +1,4 @@
-import { isSupabaseConfigured } from '@/db/supabase';
+import { isDatabaseConfigured } from '@/db/client';
 import { selectStrongDeals } from '@/lib/deal-quality';
 import { demoDeals, type Deal } from '@/lib/deals';
 import { getBundledLocalDeals } from '@/lib/local-deals';
@@ -20,7 +20,7 @@ function withSnapshotTimestamp(deals: Deal[], generatedAt: string | null) {
 }
 
 export async function getDealsWithFallback(): Promise<DealsResult> {
-  if (isSupabaseConfigured()) {
+  if (isDatabaseConfigured()) {
     const database = await getCurrentDeals();
     return { ...database, source: 'database' };
   }
@@ -47,7 +47,7 @@ export async function getDealsWithFallback(): Promise<DealsResult> {
 }
 
 export async function getOffersWithFallback(): Promise<DealsResult> {
-  if (isSupabaseConfigured()) {
+  if (isDatabaseConfigured()) {
     const database = await getCurrentOffers();
     return { ...database, source: 'database' };
   }

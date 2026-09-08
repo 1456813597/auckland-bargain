@@ -1,48 +1,31 @@
 import { createHash } from 'node:crypto';
 
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { BlobNotFoundError, head, put } from '@vercel/blob';
-
-import { getSupabaseAdmin } from '@/db/supabase';
+import { getDatabase, type Database } from '@/db/client';
 import type { RawOffer } from '@/lib/collectors/types';
+import {
+  createFilesystemImageStore,
+  listStoredImages,
+  PRODUCT_IMAGE_PREFIX,
+  type ImageStore,
+} from '@/lib/storage/image-store';
 
-const IMAGE_UPLOAD_CONCURRENCY = 12;
-// Bounds one function invocation, not the month. Claiming more slots than a
-// single run can actually upload would spend the shared budget on nothing.
+const IMAGE_DOWNLOAD_CONCURRENCY = 12;
+// Bounds one collection run, not the disk. A run that claimed more than it can
+// actually download would only delay the rest of the catalogue.
 const MAX_IMAGE_UPLOADS_PER_RUN = 48;
-const IMMUTABLE_CACHE_SECONDS = 31_536_000;
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 const INDEX_LOOKUP_BATCH = 200;
 const FAILED_MIRROR_RETRY_DAYS = 30;
-// Vercel Blob counts `put` as an advanced operation and includes 10,000 per
-// month on Hobby. Staying under the included amount keeps a slow, incremental
-// mirror from locking the whole store for 30 days.
-const DEFAULT_MONTHLY_UPLOAD_BUDGET = 8_000;
-const MAX_MONTHLY_UPLOAD_BUDGET = 1_000_000;
+// A self-hosted store pays disk, not per-operation fees. The ceiling keeps a
+// growing mirror from filling a small VPS volume and taking the site with it.
+const DEFAULT_STORE_BYTE_LIMIT = 8 * 1024 * 1024 * 1024;
+const MAX_STORE_BYTE_LIMIT = 1024 * 1024 * 1024 * 1024;
 
-export type MirrorDatabase = Pick<SupabaseClient, 'from' | 'rpc'>;
-
-type PutOptions = {
-  access: 'public';
-  addRandomSuffix: boolean;
-  cacheControlMaxAge: number;
-  contentType: string;
-};
-
-// Declared with method syntax so the real `@vercel/blob` functions, whose
-// option types are wider than the subset used here, satisfy the shape.
-export type BlobClient = {
-  head(pathname: string): Promise<{ url: string }>;
-  put(
-    pathname: string,
-    body: ArrayBuffer,
-    options: PutOptions,
-  ): Promise<{ url: string }>;
-};
+export type MirrorDatabase = Database;
 
 export type MirrorOptions = {
   database?: MirrorDatabase;
-  blob?: BlobClient;
+  store?: ImageStore;
   environment?: Record<string, string | undefined>;
   fetchImage?: typeof fetch;
   now?: () => Date;
@@ -50,32 +33,28 @@ export type MirrorOptions = {
 
 type MirrorRow = {
   pathname: string;
-  blob_url: string | null;
+  stored_url: string | null;
   status: string;
   retry_after: string | null;
 };
 
 function mirroringEnabled(environment: Record<string, string | undefined>) {
-  // An explicit opt-out matters more than the token: a project can keep its
-  // store linked for previously mirrored images while spending nothing new.
-  if (environment.PRODUCT_IMAGE_MIRROR === 'off') return false;
-  return Boolean(
-    environment.BLOB_READ_WRITE_TOKEN ||
-    (environment.VERCEL_OIDC_TOKEN && environment.BLOB_STORE_ID),
-  );
+  // Explicitly off keeps serving images already in the store while spending no
+  // more disk. Anything else mirrors, because the store is a local directory.
+  return environment.PRODUCT_IMAGE_MIRROR !== 'off';
 }
 
-export function monthlyUploadBudget(
+export function imageStoreByteLimit(
   environment: Record<string, string | undefined>,
 ) {
-  const raw = environment.PRODUCT_IMAGE_MIRROR_MONTHLY_UPLOADS;
-  if (raw === undefined || raw === '') return DEFAULT_MONTHLY_UPLOAD_BUDGET;
+  const raw = environment.PRODUCT_IMAGE_MIRROR_MAX_BYTES;
+  if (raw === undefined || raw === '') return DEFAULT_STORE_BYTE_LIMIT;
   // Reject anything that is not exactly an integer rather than silently
-  // reinterpreting "8_000" or "8000 uploads" as a different amount of spend.
+  // reinterpreting "8_000" or "8 GB" as a different amount of disk.
   const parsed = /^\d+$/.test(raw) ? Number(raw) : Number.NaN;
-  if (!Number.isSafeInteger(parsed) || parsed > MAX_MONTHLY_UPLOAD_BUDGET) {
+  if (!Number.isSafeInteger(parsed) || parsed > MAX_STORE_BYTE_LIMIT) {
     throw new Error(
-      `PRODUCT_IMAGE_MIRROR_MONTHLY_UPLOADS must be an integer between 0 and ${MAX_MONTHLY_UPLOAD_BUDGET}.`,
+      `PRODUCT_IMAGE_MIRROR_MAX_BYTES must be an integer between 0 and ${MAX_STORE_BYTE_LIMIT}.`,
     );
   }
   return parsed;
@@ -110,14 +89,14 @@ function imageExtension(sourceUrl: string) {
 
 // Content addressed by retailer, product and source URL. The same product image
 // therefore resolves to one pathname across every store of a banner, so the
-// second store to see it is answered from the index without any blob request.
+// second store to see it is answered from the index without touching the disk.
 export function productImagePath(retailerSlug: string, offer: RawOffer) {
   const sourceHash = createHash('sha256')
     .update(offer.imageUrl ?? '')
     .digest('hex')
     .slice(0, 16);
   return [
-    'product-images',
+    PRODUCT_IMAGE_PREFIX.slice(0, -1),
     safePathSegment(retailerSlug),
     `${safePathSegment(offer.sourceProductId)}-${sourceHash}.${imageExtension(offer.imageUrl ?? '')}`,
   ].join('/');
@@ -136,7 +115,7 @@ async function loadMirrorIndex(database: MirrorDatabase, pathnames: string[]) {
   for (const batch of chunks(pathnames, INDEX_LOOKUP_BATCH)) {
     const { data, error } = await database
       .from('product_image_mirrors')
-      .select('pathname,blob_url,status,retry_after')
+      .select('pathname,stored_url,status,retry_after')
       .in('pathname', batch);
     if (error) {
       throw new Error(`Load product image mirrors: ${error.message}`);
@@ -146,28 +125,23 @@ async function loadMirrorIndex(database: MirrorDatabase, pathnames: string[]) {
   return rows;
 }
 
-async function claimUploadSlots(
-  database: MirrorDatabase,
-  requested: number,
-  monthlyLimit: number,
-) {
-  const { data, error } = await database.rpc('claim_blob_upload_slots', {
-    p_requested: requested,
-    p_monthly_limit: monthlyLimit,
-  });
-  if (error) throw new Error(`Claim blob upload slots: ${error.message}`);
-  const granted = Number(data);
-  if (!Number.isSafeInteger(granted) || granted < 0 || granted > requested) {
-    throw new Error('Blob upload budget returned an invalid grant.');
+async function storedBytes(database: MirrorDatabase) {
+  const { data, error } = await database.rpc('product_image_store_bytes');
+  if (error)
+    throw new Error(`Read product image store usage: ${error.message}`);
+  const used = Number(data);
+  if (!Number.isSafeInteger(used) || used < 0) {
+    throw new Error('Product image store usage returned an invalid size.');
   }
-  return granted;
+  return used;
 }
 
 type MirrorRecord = {
   pathname: string;
   retailer_slug: string;
   source_url: string | null;
-  blob_url: string | null;
+  stored_url: string | null;
+  byte_size: number | null;
   status: 'mirrored' | 'failed';
   last_error: string | null;
   retry_after: string | null;
@@ -189,12 +163,17 @@ async function recordMirrorResults(
   }
 }
 
-async function uploadImage(
+async function storeImage(
   pathname: string,
   sourceUrl: string,
-  blob: BlobClient,
+  store: ImageStore,
   fetchImage: typeof fetch,
 ) {
+  // A file already on disk answers without another retailer request. That is
+  // what makes a lost or rebuilt index cheap instead of a full re-download.
+  const existing = await store.head(pathname);
+  if (existing) return existing;
+
   const response = await fetchImage(sourceUrl, {
     headers: {
       accept: 'image/avif,image/webp,image/png,image/jpeg,image/*',
@@ -224,26 +203,7 @@ async function uploadImage(
     throw new Error(`Product image is larger than ${MAX_IMAGE_BYTES} bytes.`);
   }
 
-  try {
-    const uploaded = await blob.put(pathname, imageBytes, {
-      access: 'public',
-      addRandomSuffix: false,
-      cacheControlMaxAge: IMMUTABLE_CACHE_SECONDS,
-      contentType,
-    });
-    return uploaded.url;
-  } catch (error) {
-    // A blob left behind by an earlier deployment, or a concurrent store
-    // collection, already holds this immutable pathname. `head` is a simple
-    // operation, an order of magnitude cheaper than retrying the upload, and
-    // the answer is written to the index so this never repeats.
-    try {
-      return (await blob.head(pathname)).url;
-    } catch (headError) {
-      if (headError instanceof BlobNotFoundError) throw error;
-      throw headError;
-    }
-  }
+  return store.put(pathname, imageBytes, { contentType });
 }
 
 export async function mirrorOfferImages(
@@ -254,10 +214,10 @@ export async function mirrorOfferImages(
   const environment = options.environment ?? process.env;
   if (!mirroringEnabled(environment)) return offers;
 
-  const budget = monthlyUploadBudget(environment);
+  const limit = imageStoreByteLimit(environment);
   const now = options.now ?? (() => new Date());
-  const database = options.database ?? getSupabaseAdmin();
-  const blob = options.blob ?? ({ head, put } satisfies BlobClient);
+  const database = options.database ?? getDatabase();
+  const store = options.store ?? createFilesystemImageStore(environment);
   const fetchImage = options.fetchImage ?? fetch;
 
   const targets = offers.flatMap((offer, index) =>
@@ -274,7 +234,7 @@ export async function mirrorOfferImages(
     ]);
   } catch (error) {
     // Without the index there is no cheap way to tell mirrored images apart, so
-    // this run serves retailer URLs rather than re-uploading the catalogue.
+    // this run serves retailer URLs rather than re-downloading the catalogue.
     console.warn(
       `Could not read the ${retailerSlug} product image index; using retailer URLs for this run.`,
       error,
@@ -287,8 +247,8 @@ export async function mirrorOfferImages(
   const at = now();
   for (const target of targets) {
     const row = index.get(target.pathname);
-    if (row?.status === 'mirrored' && row.blob_url) {
-      mirrored[target.index] = { ...target.offer, imageUrl: row.blob_url };
+    if (row?.status === 'mirrored' && row.stored_url) {
+      mirrored[target.index] = { ...target.offer, imageUrl: row.stored_url };
       continue;
     }
     if (
@@ -302,46 +262,49 @@ export async function mirrorOfferImages(
   }
   if (pending.size === 0) return mirrored;
 
-  const queue = [...pending.values()].slice(0, MAX_IMAGE_UPLOADS_PER_RUN);
-  let slots: number;
+  let used: number;
   try {
-    slots = await claimUploadSlots(database, queue.length, budget);
+    used = await storedBytes(database);
   } catch (error) {
     console.warn(
-      `Could not claim ${retailerSlug} product image upload budget; using retailer URLs for this run.`,
+      `Could not read the product image store usage; using retailer URLs for ${pending.size} ${retailerSlug} images.`,
       error,
     );
     return mirrored;
   }
-  if (slots === 0) {
+  if (used >= limit) {
     console.warn(
-      `Reached the monthly product image mirror budget of ${budget} uploads; using retailer URLs for ${pending.size} ${retailerSlug} images.`,
+      `Product image store is using ${used} of ${limit} bytes; using retailer URLs for ${pending.size} ${retailerSlug} images.`,
     );
     return mirrored;
   }
 
-  const claimed = queue.slice(0, slots);
+  const claimed = [...pending.values()].slice(0, MAX_IMAGE_UPLOADS_PER_RUN);
   const records: MirrorRecord[] = [];
   const retryAfter = new Date(
     at.getTime() + FAILED_MIRROR_RETRY_DAYS * 86_400_000,
   ).toISOString();
-  for (const batch of chunks(claimed, IMAGE_UPLOAD_CONCURRENCY)) {
+  let remaining = limit - used;
+  for (const batch of chunks(claimed, IMAGE_DOWNLOAD_CONCURRENCY)) {
+    if (remaining <= 0) break;
     await Promise.all(
       batch.map(async (target) => {
         const sourceUrl = target.offer.imageUrl!;
         try {
-          const blobUrl = await uploadImage(
+          const stored = await storeImage(
             target.pathname,
             sourceUrl,
-            blob,
+            store,
             fetchImage,
           );
-          mirrored[target.index] = { ...target.offer, imageUrl: blobUrl };
+          remaining -= stored.byteSize;
+          mirrored[target.index] = { ...target.offer, imageUrl: stored.url };
           records.push({
             pathname: target.pathname,
             retailer_slug: retailerSlug,
             source_url: sourceUrl,
-            blob_url: blobUrl,
+            stored_url: stored.url,
+            byte_size: stored.byteSize,
             status: 'mirrored',
             last_error: null,
             retry_after: null,
@@ -358,7 +321,8 @@ export async function mirrorOfferImages(
             pathname: target.pathname,
             retailer_slug: retailerSlug,
             source_url: sourceUrl,
-            blob_url: null,
+            stored_url: null,
+            byte_size: null,
             status: 'failed',
             last_error: message.slice(0, 2_000),
             retry_after: retryAfter,
@@ -372,8 +336,8 @@ export async function mirrorOfferImages(
   try {
     await recordMirrorResults(database, records);
   } catch (error) {
-    // The uploads themselves succeeded; losing the index entry only means the
-    // next run pays a `head` to rediscover them, never a duplicate upload.
+    // The files themselves are written; losing the index entry only means the
+    // next run pays one `stat` to rediscover them, never a second download.
     console.warn(
       `Could not record ${retailerSlug} product image mirror results.`,
       error,
@@ -382,74 +346,43 @@ export async function mirrorOfferImages(
   return mirrored;
 }
 
-export type BlobLister = (options: {
-  prefix: string;
-  limit: number;
-  cursor?: string;
-}) => Promise<{
-  blobs: { pathname: string; url: string }[];
-  cursor?: string;
-  hasMore: boolean;
-}>;
-
-const INDEX_PREFIX = 'product-images/';
-
-// One-off adoption of blobs uploaded before the index existed. This is the only
-// `list` in the codebase: it costs one advanced operation per 1,000 blobs, once,
-// instead of the full prefix walk the collector used to pay on every store run.
-export async function seedProductImageIndex(
+// One-off registration of files that exist on disk but not in the index: after
+// restoring a volume backup, or after moving the store between servers.
+export async function adoptStoredImages(
   options: {
     database?: MirrorDatabase;
-    list?: BlobLister;
+    environment?: Record<string, string | undefined>;
     execute?: boolean;
     now?: () => Date;
   } = {},
 ) {
-  const database = options.database ?? getSupabaseAdmin();
-  const listBlobs = options.list;
-  if (!listBlobs) throw new Error('A blob listing function is required.');
+  const database = options.database ?? getDatabase();
+  const environment = options.environment ?? process.env;
   const at = (options.now ?? (() => new Date()))();
 
   const records: MirrorRecord[] = [];
-  const skipped: string[] = [];
-  let cursor: string | undefined;
-  let pages = 0;
-  do {
-    const page = await listBlobs({
-      prefix: INDEX_PREFIX,
-      limit: 1_000,
-      cursor,
+  for await (const entry of listStoredImages(environment)) {
+    records.push({
+      pathname: entry.pathname,
+      retailer_slug: entry.retailerSlug,
+      source_url: null,
+      stored_url: entry.url,
+      byte_size: entry.byteSize,
+      status: 'mirrored',
+      last_error: null,
+      retry_after: null,
+      updated_at: at.toISOString(),
     });
-    pages += 1;
-    for (const blob of page.blobs) {
-      const retailerSlug = blob.pathname.split('/')[1];
-      if (!retailerSlug) {
-        skipped.push(blob.pathname);
-        continue;
-      }
-      records.push({
-        pathname: blob.pathname,
-        retailer_slug: retailerSlug,
-        source_url: null,
-        blob_url: blob.url,
-        status: 'mirrored',
-        last_error: null,
-        retry_after: null,
-        updated_at: at.toISOString(),
-      });
-    }
-    if (page.hasMore && !page.cursor) {
-      throw new Error('Vercel Blob returned another page without a cursor.');
-    }
-    cursor = page.hasMore ? page.cursor : undefined;
-  } while (cursor);
+  }
 
   if (options.execute) await recordMirrorResults(database, records);
   return {
     mode: options.execute ? ('execute' as const) : ('preview' as const),
-    listPages: pages,
-    adopted: records.length,
+    found: records.length,
+    bytes: records.reduce(
+      (total, record) => total + (record.byte_size ?? 0),
+      0,
+    ),
     written: options.execute ? records.length : 0,
-    skipped,
   };
 }

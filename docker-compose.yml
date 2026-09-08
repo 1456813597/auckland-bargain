@@ -1,0 +1,62 @@
+name: auckland-bargain
+
+# One web container, one scheduler container, and a one-shot migration job.
+# `docker compose up -d` on the server pulls the images built by GitHub Actions;
+# `docker compose build` rebuilds them locally from this checkout instead.
+services:
+  app:
+    image: ${APP_IMAGE:-ghcr.io/1456813597/auckland-bargain:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      PRODUCT_IMAGE_DIR: /data/product-images
+      TZ: ${CRON_TZ:-Pacific/Auckland}
+    ports:
+      # Bound to the loopback interface by default: the aaPanel/Baota site
+      # reverse-proxies to it, so the container is not exposed on its own.
+      - '${APP_BIND:-127.0.0.1}:${APP_PORT:-3000}:3000'
+    volumes:
+      - product-images:/data/product-images
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:3000/api/health/live']
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  scheduler:
+    image: ${SCHEDULER_IMAGE:-ghcr.io/1456813597/auckland-bargain-scheduler:latest}
+    build:
+      context: .
+      dockerfile: docker/scheduler/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_URL: ${APP_INTERNAL_URL:-http://app:3000}
+      CRON_TZ: ${CRON_TZ:-Pacific/Auckland}
+    depends_on:
+      app:
+        condition: service_healthy
+
+  # Runs on demand, never on `up`:
+  #   docker compose --profile migrate run --rm migrate
+  migrate:
+    image: ${APP_IMAGE:-ghcr.io/1456813597/auckland-bargain:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ['migrate']
+    restart: 'no'
+    env_file:
+      - .env
+    command: ['node', 'scripts/migrate.mjs']
+
+volumes:
+  product-images:

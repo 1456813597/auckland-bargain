@@ -1,6 +1,5 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { getSupabaseAdmin } from '../../db/supabase';
-import { ingestOffers } from '../ingestion/supabase';
+import { getDatabase, type Database } from '../../db/client';
+import { ingestOffers } from '../ingestion/database';
 import { nzWeekStart } from '../weekly-history';
 import {
   collectRegisteredStore,
@@ -14,7 +13,7 @@ import {
   type StoreRegistry,
 } from './store-registry';
 
-export type QueueDatabase = Pick<SupabaseClient, 'rpc'>;
+export type QueueDatabase = Pick<Database, 'rpc'>;
 export type QueuedCollection = {
   jobId: number;
   runId: number;
@@ -68,7 +67,7 @@ async function rpc(
 
 export async function syncCollectionTargets(
   registry: StoreRegistry,
-  database: Pick<SupabaseClient, 'from'> = getSupabaseAdmin(),
+  database: Pick<Database, 'from'> = getDatabase(),
 ) {
   // Validate the entire input before the first write. This is an upsert, not a
   // deletion/replacement of targets managed outside this manifest.
@@ -100,7 +99,7 @@ export async function syncCollectionTargets(
 }
 
 export async function enqueueWeeklyCollections(
-  database: QueueDatabase = getSupabaseAdmin(),
+  database: QueueDatabase = getDatabase(),
   retailer?: RegisteredRetailer,
 ) {
   return rpc(database, 'enqueue_weekly_collection_jobs', {
@@ -109,7 +108,7 @@ export async function enqueueWeeklyCollections(
 }
 
 export async function getCollectionQueueStatus(
-  database: QueueDatabase = getSupabaseAdmin(),
+  database: QueueDatabase = getDatabase(),
 ) {
   return rpc(database, 'collection_queue_status');
 }
@@ -132,7 +131,7 @@ export async function processOneCollectionJob(
     ingest?: typeof ingestOffers;
   } = {},
 ) {
-  const database = options.database ?? getSupabaseAdmin();
+  const database = options.database ?? getDatabase();
   const raw = await rpc(database, 'claim_collection_job', {
     p_retailer_slug: options.retailer ?? null,
   });
@@ -218,19 +217,58 @@ export const collectionDrainDefaults = {
   claimDeadlineMs: 120_000,
 } as const;
 
-export function parseDrainLimit(value: string | null) {
-  if (value === null) return collectionDrainDefaults.limit;
+function boundedInteger(
+  value: string | undefined,
+  fallback: number,
+  name: string,
+  maximum: number,
+) {
+  if (value === undefined || value === '') return fallback;
+  const parsed = /^\d+$/.test(value) ? Number(value) : Number.NaN;
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > maximum) {
+    throw new Error(`${name} must be an integer between 1 and ${maximum}.`);
+  }
+  return parsed;
+}
+
+// A container this project runs itself has no serverless time limit, so the
+// bounds that used to be dictated by the platform are configuration.
+export function drainSettings(
+  environment: Record<string, string | undefined> = process.env,
+) {
+  const maxLimit = boundedInteger(
+    environment.COLLECTION_JOB_MAX_LIMIT,
+    collectionDrainDefaults.maxLimit,
+    'COLLECTION_JOB_MAX_LIMIT',
+    1_000,
+  );
+  return {
+    maxLimit,
+    limit: boundedInteger(
+      environment.COLLECTION_JOB_LIMIT,
+      Math.min(collectionDrainDefaults.limit, maxLimit),
+      'COLLECTION_JOB_LIMIT',
+      maxLimit,
+    ),
+    claimDeadlineMs: boundedInteger(
+      environment.COLLECTION_CLAIM_DEADLINE_MS,
+      collectionDrainDefaults.claimDeadlineMs,
+      'COLLECTION_CLAIM_DEADLINE_MS',
+      86_400_000,
+    ),
+  };
+}
+
+export function parseDrainLimit(
+  value: string | null,
+  settings = drainSettings(),
+) {
+  if (value === null) return settings.limit;
   // Reject anything that is not exactly an integer rather than silently
   // reinterpreting "2.5" or "3 stores" as a different amount of collection.
   const parsed = /^\d+$/.test(value) ? Number(value) : Number.NaN;
-  if (
-    !Number.isSafeInteger(parsed) ||
-    parsed < 1 ||
-    parsed > collectionDrainDefaults.maxLimit
-  )
-    throw new Error(
-      `Limit must be between 1 and ${collectionDrainDefaults.maxLimit}.`,
-    );
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > settings.maxLimit)
+    throw new Error(`Limit must be between 1 and ${settings.maxLimit}.`);
   return parsed;
 }
 
@@ -245,10 +283,10 @@ export async function drainCollectionQueue(
     process?: typeof processOneCollectionJob;
   } = {},
 ) {
-  const database = options.database ?? getSupabaseAdmin();
-  const limit = options.limit ?? collectionDrainDefaults.limit;
-  const claimDeadlineMs =
-    options.claimDeadlineMs ?? collectionDrainDefaults.claimDeadlineMs;
+  const database = options.database ?? getDatabase();
+  const settings = drainSettings(options.environment);
+  const limit = options.limit ?? settings.limit;
+  const claimDeadlineMs = options.claimDeadlineMs ?? settings.claimDeadlineMs;
   const now = options.now ?? Date.now;
   const startedAt = now();
   const runJob = options.process ?? processOneCollectionJob;
