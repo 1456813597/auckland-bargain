@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import {
   ArrowRight,
   Check,
@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 import {
   NativeSelect,
   NativeSelectOption,
@@ -36,6 +37,10 @@ import {
 } from '@/lib/comparison-query';
 
 const ALL = 'all';
+// The catalogue carries hundreds of supplier categories, most holding a handful
+// of products. Lead with the ones that actually have something to compare and
+// keep the rest behind the expander.
+const COLLAPSED_CATEGORIES = 8;
 
 function shortDate(value: string | null) {
   if (!value) return 'Sample data';
@@ -69,17 +74,17 @@ function ResultCard({
 
   return (
     <Card className="content-auto gap-0 overflow-hidden rounded-xl border-border bg-card py-0 shadow-none transition-colors duration-200 hover:border-primary/45">
-      <div className="grid gap-4 p-4 sm:grid-cols-[112px_minmax(0,1fr)_auto] sm:p-5">
+      <div className="grid grid-cols-[88px_minmax(0,1fr)] gap-4 p-4 sm:grid-cols-[112px_minmax(0,1fr)_auto] sm:p-5">
         <Link
           href={href}
           prefetch={false}
-          className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="self-start rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           aria-label={`Compare prices for ${product.name}`}
         >
           <ProductImage
             src={product.imageUrl}
             alt={`${product.name} product`}
-            sizes="112px"
+            sizes="(max-width: 639px) 88px, 112px"
             className="aspect-square w-full rounded-lg sm:w-28"
           />
         </Link>
@@ -139,7 +144,7 @@ function ResultCard({
           </div>
         </div>
 
-        <div className="flex items-end justify-between gap-4 border-t pt-4 sm:min-w-32 sm:flex-col sm:items-end sm:justify-start sm:border-s sm:border-t-0 sm:ps-5 sm:pt-0">
+        <div className="col-span-2 flex items-end justify-between gap-4 border-t pt-4 sm:col-span-1 sm:min-w-32 sm:flex-col sm:items-end sm:justify-start sm:border-s sm:border-t-0 sm:ps-5 sm:pt-0">
           <div className="sm:text-right">
             <span className="text-xs font-semibold text-muted-foreground">
               From
@@ -187,16 +192,33 @@ export function ComparisonBrowser({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState(results.filters.q);
-  const category = results.filters.category || ALL;
-  const retailer = results.filters.retailer || ALL;
-  const sort = results.filters.sort;
-  const matchedOnly = results.filters.matched;
+  const [appliedQuery, setAppliedQuery] = useState(results.filters.q);
+  const [requested, setRequested] = useState<ComparisonFilters | null>(null);
   const [showAllCategories, setShowAllCategories] = useState(false);
-  const categories = results.categories.map(([name]) => name);
+  const [categoryQuery, setCategoryQuery] = useState('');
+  const resultsRef = useRef<HTMLElement>(null);
+  const returnToResults = useRef(false);
+
+  // The search box is uncontrolled by the URL while typing, but history moves
+  // and cleared filters change `q` underneath it; re-sync when that happens.
+  if (appliedQuery !== results.filters.q) {
+    setAppliedQuery(results.filters.q);
+    setQuery(results.filters.q);
+  }
+
+  // A filter change is a server round trip. Reflect the requested selection
+  // straight away so a click is never mistaken for a control that did nothing.
+  const active = pending && requested ? requested : results.filters;
+  const category = active.category || ALL;
+  const retailer = active.retailer || ALL;
+  const sort = active.sort;
+  const matchedOnly = active.matched;
   const categoryCounts = new Map(results.categories);
   const retailers = results.retailers;
+
   const navigate = (changes: Partial<ComparisonFilters>) => {
     const filters = { ...results.filters, q: query, page: 1, ...changes };
+    setRequested(filters);
     const params = comparisonSearchParams(filters);
     startTransition(() =>
       router.push(`/?${params.toString()}#compare`, { scroll: false }),
@@ -210,20 +232,67 @@ export function ComparisonBrowser({
 
   const clearFilters = () => {
     setQuery('');
+    setCategoryQuery('');
     navigate({ q: '', category: '', retailer: '', city: '', matched: false });
   };
 
+  const rankedCategories = results.categories
+    .toSorted(
+      ([leftName, left], [rightName, right]) =>
+        right - left || leftName.localeCompare(rightName, 'en-NZ'),
+    )
+    .map(([name]) => name);
+  const collapsedCategories = rankedCategories.slice(0, COLLAPSED_CATEGORIES);
+  // A selected category outside the collapsed list would otherwise vanish from
+  // the sidebar, leaving no visible sign of which filter is applied.
+  if (category !== ALL && !collapsedCategories.includes(category)) {
+    collapsedCategories.push(category);
+  }
+  const searchedCategories = categoryQuery
+    ? results.categories
+        .map(([name]) => name)
+        .filter((name) =>
+          name
+            .toLocaleLowerCase('en-NZ')
+            .includes(categoryQuery.toLocaleLowerCase('en-NZ')),
+        )
+    : results.categories.map(([name]) => name);
   const visibleCategories = showAllCategories
-    ? categories
-    : categories.slice(0, 7);
+    ? searchedCategories
+    : collapsedCategories;
+
   const pageCount = results.totalPages;
   const currentPage = results.filters.page;
   const firstVisibleIndex = (currentPage - 1) * results.filters.limit;
   const paginated = results.products;
 
   const goToPage = (nextPage: number) => {
+    // Paging keeps the viewport where it was, which lands the reader at the end
+    // of the next page. Put them back at the first new result once it arrives.
+    returnToResults.current = true;
     navigate({ page: Math.min(Math.max(nextPage, 1), pageCount) });
   };
+
+  useEffect(() => {
+    if (!returnToResults.current) return;
+    returnToResults.current = false;
+    const section = resultsRef.current;
+    if (!section) return;
+    // Result cards use content-visibility, so the layout above the viewport is
+    // only estimated: scrollIntoView lands in the wrong place and a smooth
+    // scroll is cancelled part way. Jump to the measured offset instead.
+    window.scrollTo({
+      top: Math.max(
+        0,
+        section.getBoundingClientRect().top + window.scrollY - 24,
+      ),
+    });
+  }, [results]);
+
+  const filterButtonClass = (selected: boolean) =>
+    `flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-left text-sm font-semibold transition-colors ${
+      selected ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+    }`;
 
   return (
     <>
@@ -273,7 +342,7 @@ export function ComparisonBrowser({
                 type="submit"
                 disabled={pending}
               >
-                Search
+                {pending ? <Spinner /> : null} Search
               </Button>
             </form>
             <label
@@ -284,7 +353,7 @@ export function ComparisonBrowser({
             </label>
             <NativeSelect
               id="city-filter"
-              value={results.filters.city}
+              value={active.city}
               onChange={(event) => navigate({ city: event.target.value })}
               className="mt-1 min-h-11 w-full rounded-lg"
             >
@@ -330,48 +399,77 @@ export function ComparisonBrowser({
                   <ListFilter className="size-4" aria-hidden="true" />{' '}
                   Categories
                 </h2>
-                <div className="mt-3 grid gap-1">
+                {showAllCategories && (
+                  <Input
+                    value={categoryQuery}
+                    onChange={(event) => {
+                      setCategoryQuery(event.target.value);
+                    }}
+                    placeholder="Filter categories"
+                    aria-label="Filter the category list"
+                    className="mt-3 h-10 rounded-lg text-sm"
+                  />
+                )}
+                <div
+                  className={`mt-3 grid gap-1 ${showAllCategories ? 'max-h-[26rem] overflow-y-auto pe-1' : ''}`}
+                >
                   <button
                     type="button"
+                    aria-pressed={category === ALL}
                     onClick={() => {
                       setCategory(ALL);
                     }}
-                    className={`flex min-h-11 cursor-pointer items-center justify-between rounded-lg px-3 text-left text-sm font-semibold transition-colors ${category === ALL ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                    className={`${filterButtonClass(category === ALL)} justify-between`}
                   >
                     All products <span>{results.totalProducts}</span>
                   </button>
                   {visibleCategories.map((item) => {
                     const count = categoryCounts.get(item) ?? 0;
+                    const selected = category === item;
                     return (
                       <button
                         key={item}
                         type="button"
+                        aria-pressed={selected}
                         onClick={() => {
                           setCategory(item);
                         }}
-                        className={`flex min-h-11 cursor-pointer items-center justify-between rounded-lg px-3 text-left text-sm font-semibold transition-colors ${category === item ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                        className={`${filterButtonClass(selected)} justify-between`}
                       >
                         <span className="truncate">{item}</span>
-                        <span className="ms-3 text-xs opacity-70">{count}</span>
+                        <span
+                          className={`ms-3 text-xs ${selected ? '' : 'text-muted-foreground'}`}
+                        >
+                          {count}
+                        </span>
                       </button>
                     );
                   })}
-                  {categories.length > 7 && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowAllCategories((current) => !current)
-                      }
-                      className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm font-semibold text-primary transition-colors hover:bg-muted"
-                    >
-                      {showAllCategories ? 'Show fewer' : 'Show all categories'}
-                      <ChevronDown
-                        className={`size-4 transition-transform ${showAllCategories ? 'rotate-180' : ''}`}
-                        aria-hidden="true"
-                      />
-                    </button>
+                  {showAllCategories && visibleCategories.length === 0 && (
+                    <p className="px-3 py-2 text-sm text-muted-foreground">
+                      No category matches “{categoryQuery}”.
+                    </p>
                   )}
                 </div>
+                {results.categories.length > COLLAPSED_CATEGORIES && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAllCategories((current) => !current);
+                      setCategoryQuery('');
+                    }}
+                    aria-expanded={showAllCategories}
+                    className="mt-1 flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-lg px-3 text-sm font-semibold text-primary transition-colors hover:bg-muted"
+                  >
+                    {showAllCategories
+                      ? 'Show fewer'
+                      : `Show all ${results.categories.length} categories`}
+                    <ChevronDown
+                      className={`size-4 transition-transform ${showAllCategories ? 'rotate-180' : ''}`}
+                      aria-hidden="true"
+                    />
+                  </button>
+                )}
               </div>
 
               <div>
@@ -384,10 +482,11 @@ export function ComparisonBrowser({
                       <button
                         key={slug}
                         type="button"
+                        aria-pressed={retailer === slug}
                         onClick={() => {
                           setRetailer(slug);
                         }}
-                        className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 text-left text-sm font-semibold transition-colors ${retailer === slug ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                        className={filterButtonClass(retailer === slug)}
                       >
                         {retailer === slug && (
                           <Check className="size-4" aria-hidden="true" />
@@ -403,8 +502,10 @@ export function ComparisonBrowser({
 
           <section
             id="compare"
+            ref={resultsRef}
             aria-labelledby="results-heading"
             aria-busy={pending}
+            className="scroll-mt-6"
           >
             <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -415,22 +516,25 @@ export function ComparisonBrowser({
                   Products and prices
                 </h2>
                 <p
-                  className="mt-1 text-sm text-muted-foreground"
+                  className="mt-1 flex items-center gap-2 text-sm text-muted-foreground"
                   aria-live="polite"
                 >
-                  {pending ? 'Updating… ' : ''}
-                  {results.total} {results.total === 1 ? 'product' : 'products'}{' '}
-                  found
-                  {results.total > 0 && (
-                    <>
-                      {' '}
-                      &middot; Showing {firstVisibleIndex + 1}&ndash;
-                      {Math.min(
-                        firstVisibleIndex + results.filters.limit,
-                        results.total,
-                      )}
-                    </>
-                  )}
+                  {pending && <Spinner className="size-3.5" />}
+                  <span>
+                    {pending ? 'Updating results… ' : ''}
+                    {results.total}{' '}
+                    {results.total === 1 ? 'product' : 'products'} found
+                    {results.total > 0 && (
+                      <>
+                        {' '}
+                        &middot; Showing {firstVisibleIndex + 1}&ndash;
+                        {Math.min(
+                          firstVisibleIndex + results.filters.limit,
+                          results.total,
+                        )}
+                      </>
+                    )}
+                  </span>
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:flex">
@@ -443,9 +547,9 @@ export function ComparisonBrowser({
                   <NativeSelectOption value={ALL}>
                     All categories
                   </NativeSelectOption>
-                  {categories.map((item) => (
+                  {rankedCategories.map((item) => (
                     <NativeSelectOption key={item} value={item}>
-                      {item}
+                      {item} ({categoryCounts.get(item) ?? 0})
                     </NativeSelectOption>
                   ))}
                 </NativeSelect>
@@ -500,7 +604,9 @@ export function ComparisonBrowser({
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3">
+            <div
+              className={`mt-5 grid gap-3 transition-opacity duration-150 ${pending ? 'opacity-45' : ''}`}
+            >
               {paginated.map((product) => (
                 <ResultCard
                   key={product.id}
