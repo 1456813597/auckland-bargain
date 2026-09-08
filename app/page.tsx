@@ -27,7 +27,6 @@ export default async function Home({
     <>
       <SiteHeader />
       <ComparisonBrowser
-        key={params.toString()}
         results={results}
         source={source.source}
         updatedAt={source.updatedAt}
