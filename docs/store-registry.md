@@ -102,12 +102,16 @@ npm run queue:work              # claim and run exactly one job
 ```
 
 `/api/cron/collect` is the deployed form of `queue:enqueue` + `queue:work`,
-scheduled hourly in `vercel.json`. One invocation enqueues this NZ week's
-eligible targets, then claims at most `?limit=` jobs (default 3, maximum 10,
-optionally narrowed with `?retailer=`), stopping after a 120-second claim
-deadline so the remaining function budget belongs to the job already running.
+scheduled hourly by the scheduler container from `deploy/cron-jobs.json`. One
+invocation enqueues this NZ week's eligible targets, then claims at most
+`?limit=` jobs (default 3, maximum 10, optionally narrowed with `?retailer=`),
+stopping after a 120-second claim deadline so the rest of the call's time
+belongs to the job already running. Both bounds are configuration:
+`COLLECTION_JOB_LIMIT`, `COLLECTION_JOB_MAX_LIMIT` and
+`COLLECTION_CLAIM_DEADLINE_MS` were sized for a serverless platform's 300-second
+ceiling, which a self-hosted container does not have.
 It never loops over the whole registry in one invocation, and it never syncs
-targets. A job the platform kills mid-collection stays `running` until the
+targets. A job killed mid-collection stays `running` until the
 database lease reaper releases it after 15 minutes; a later invocation retries
 it under the same three-attempt budget with 5- and 10-minute backoff, which is
 why the schedule repeats through the week instead of firing once.
@@ -123,7 +127,7 @@ whose permission is revoked mid-run rolls back its prices and history.
 
 ## Legacy production boundary
 
-The six per-banner Vercel cron routes still use their single-store environment
+The six per-banner scheduled routes still use their single-store environment
 configuration. They do **not** read this registry or apply its access gate;
 neither does the legacy `deals:refresh` source-selection path. Do not activate
 them without separately completing source-access review. Retire each one as its

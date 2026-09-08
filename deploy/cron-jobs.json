@@ -1,0 +1,56 @@
+{
+  "$comment": "The schedule table the scheduler container renders into a crontab. Times are read in CRON_TZ (Pacific/Auckland by default), and any job can be re-timed or disabled with its environment variable — set it to `off` to skip the job entirely.",
+  "timezoneVariable": "CRON_TZ",
+  "defaultTimezone": "Pacific/Auckland",
+  "jobs": [
+    {
+      "name": "queue",
+      "path": "/api/cron/collect",
+      "variable": "CRON_COLLECT_SCHEDULE",
+      "schedule": "0 * * * *",
+      "description": "Registry-driven queue: enqueues this NZ week's eligible stores and drains a few jobs. Hourly so backed-off retries still land inside the same week."
+    },
+    {
+      "name": "woolworths",
+      "path": "/api/cron/woolworths",
+      "variable": "CRON_WOOLWORTHS_SCHEDULE",
+      "schedule": "10 4 * * 1",
+      "description": "Legacy single-store weekly collection for Woolworths."
+    },
+    {
+      "name": "paknsave",
+      "path": "/api/cron/supermarkets?retailer=paknsave",
+      "variable": "CRON_PAKNSAVE_SCHEDULE",
+      "schedule": "20 5 * * 1",
+      "description": "Legacy single-store weekly collection for PAK'nSAVE."
+    },
+    {
+      "name": "newworld",
+      "path": "/api/cron/supermarkets?retailer=newworld",
+      "variable": "CRON_NEWWORLD_SCHEDULE",
+      "schedule": "30 6 * * 1",
+      "description": "Legacy single-store weekly collection for New World."
+    },
+    {
+      "name": "foursquare",
+      "path": "/api/cron/supermarkets?retailer=foursquare",
+      "variable": "CRON_FOURSQUARE_SCHEDULE",
+      "schedule": "40 7 * * 1",
+      "description": "Legacy single-store weekly collection for Four Square."
+    },
+    {
+      "name": "freshchoice",
+      "path": "/api/cron/supermarkets?retailer=freshchoice",
+      "variable": "CRON_FRESHCHOICE_SCHEDULE",
+      "schedule": "50 8 * * 1",
+      "description": "Legacy single-store weekly collection for FreshChoice."
+    },
+    {
+      "name": "supervalue",
+      "path": "/api/cron/supermarkets?retailer=supervalue",
+      "variable": "CRON_SUPERVALUE_SCHEDULE",
+      "schedule": "0 10 * * 1",
+      "description": "Legacy single-store weekly collection for SuperValue."
+    }
+  ]
+}

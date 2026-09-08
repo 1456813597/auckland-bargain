@@ -1,16 +1,18 @@
-import { isSupabaseConfigured } from '@/db/supabase';
+import { isDatabaseConfigured } from '@/db/client';
 import { WoolworthsCollector } from '@/lib/collectors/woolworths';
-import { isAuthorizedCronRequest } from '@/lib/http/cron-auth';
+import {
+  collectionTrigger,
+  isAuthorizedCronRequest,
+} from '@/lib/http/cron-auth';
 import {
   CollectionAlreadyRunningError,
   createCollectionRun,
   ingestOffers,
   markCollectionRunFailed,
-} from '@/lib/ingestion/supabase';
+} from '@/lib/ingestion/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
 
 function positiveInteger(value: string | undefined, fallback: number) {
   const parsed = Number.parseInt(value ?? '', 10);
@@ -22,7 +24,7 @@ export async function GET(request: Request) {
     return Response.json({ error: 'Unauthorized.' }, { status: 401 });
   }
 
-  if (!isSupabaseConfigured()) {
+  if (!isDatabaseConfigured()) {
     return Response.json(
       { error: 'Supabase is not configured on the server.' },
       { status: 503 },
@@ -43,12 +45,7 @@ export async function GET(request: Request) {
     runId = await createCollectionRun(
       collector.retailerSlug,
       store.sourceStoreId,
-      {
-        trigger:
-          request.headers.get('user-agent') === 'vercel-cron/1.0'
-            ? 'vercel-cron'
-            : 'manual',
-      },
+      { trigger: collectionTrigger(request) },
     );
 
     const collection = await collector.collectSpecials(store);
@@ -91,7 +88,7 @@ export async function GET(request: Request) {
       {
         ok: false,
         runId,
-        error: 'Woolworths collection failed. Check the Vercel function logs.',
+        error: 'Woolworths collection failed. Check the application logs.',
       },
       { status: 500 },
     );

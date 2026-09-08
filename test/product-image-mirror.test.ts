@@ -1,19 +1,24 @@
 /* oxlint-disable typescript/no-floating-promises -- node:test registration is intentionally not awaited. */
 import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { after, before, describe, it, test } from 'node:test';
 import { PGlite } from '@electric-sql/pglite';
 import type { RawOffer } from '../lib/collectors/types';
 import {
+  createFilesystemImageStore,
+  type ImageStore,
+} from '../lib/storage/image-store';
+import {
+  adoptStoredImages,
+  imageStoreByteLimit,
   mirrorOfferImages,
-  monthlyUploadBudget,
   productImagePath,
-  seedProductImageIndex,
-  type BlobClient,
   type MirrorDatabase,
 } from '../lib/storage/product-images';
 
-const environment = { BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_test' };
+const environment: Record<string, string | undefined> = {};
 
 function offer(sourceProductId: string, imageUrl: string | null): RawOffer {
   return {
@@ -37,13 +42,10 @@ function offer(sourceProductId: string, imageUrl: string | null): RawOffer {
 
 type StoredRow = Record<string, unknown> & { pathname: string };
 
-function fakeDatabase(
-  grant: (requested: number, limit: number) => number = (requested) =>
-    requested,
-) {
+function fakeDatabase(usedBytes = 0) {
   const stored = new Map<string, StoredRow>();
   const selects: string[][] = [];
-  const claims: { requested: number; limit: number }[] = [];
+  const usageReads: number[] = [];
   const database = {
     from(table: string) {
       assert.equal(table, 'product_image_mirrors');
@@ -66,44 +68,42 @@ function fakeDatabase(
         },
       };
     },
-    rpc: (name: string, parameters: Record<string, number>) => {
-      assert.equal(name, 'claim_blob_upload_slots');
-      claims.push({
-        requested: parameters.p_requested,
-        limit: parameters.p_monthly_limit,
-      });
-      return Promise.resolve({
-        data: grant(parameters.p_requested, parameters.p_monthly_limit),
-        error: null,
-      });
+    rpc: (name: string) => {
+      assert.equal(name, 'product_image_store_bytes');
+      usageReads.push(usedBytes);
+      return Promise.resolve({ data: usedBytes, error: null });
     },
   };
   return {
     database: database as unknown as MirrorDatabase,
     stored,
     selects,
-    claims,
+    usageReads,
   };
 }
 
-function fakeBlob() {
+function fakeStore() {
+  const written = new Map<string, number>();
   const puts: string[] = [];
   const heads: string[] = [];
-  const blob: BlobClient = {
-    put: (pathname) => {
-      puts.push(pathname);
-      return Promise.resolve({
-        url: `https://store.public.blob.vercel-storage.com/${pathname}`,
-      });
-    },
+  const store: ImageStore = {
     head: (pathname) => {
       heads.push(pathname);
+      const byteSize = written.get(pathname);
+      return Promise.resolve(
+        byteSize === undefined ? null : { url: `/${pathname}`, byteSize },
+      );
+    },
+    put: (pathname, body) => {
+      puts.push(pathname);
+      written.set(pathname, body.byteLength);
       return Promise.resolve({
-        url: `https://store.public.blob.vercel-storage.com/${pathname}`,
+        url: `/${pathname}`,
+        byteSize: body.byteLength,
       });
     },
   };
-  return { blob, puts, heads };
+  return { store, puts, heads, written };
 }
 
 function fakeFetch() {
@@ -119,42 +119,39 @@ function fakeFetch() {
   return { fetchImage, requested };
 }
 
-test('an image already recorded in the index costs no blob operation', async () => {
+test('an image already recorded in the index is never touched again', async () => {
   const offers = [offer('a', 'https://cdn.example/a.jpg')];
   const pathname = productImagePath('paknsave', offers[0]);
-  const { database, stored, claims } = fakeDatabase();
+  const { database, stored, usageReads } = fakeDatabase();
   stored.set(pathname, {
     pathname,
-    blob_url: `https://store.public.blob.vercel-storage.com/${pathname}`,
+    stored_url: `/${pathname}`,
     status: 'mirrored',
     retry_after: null,
   });
-  const { blob, puts, heads } = fakeBlob();
+  const { store, puts, heads } = fakeStore();
   const { fetchImage, requested } = fakeFetch();
 
   const mirrored = await mirrorOfferImages('paknsave', offers, {
     database,
-    blob,
+    store,
     environment,
     fetchImage,
   });
 
-  assert.equal(
-    mirrored[0].imageUrl,
-    `https://store.public.blob.vercel-storage.com/${pathname}`,
-  );
-  assert.deepEqual([puts, heads, requested, claims], [[], [], [], []]);
+  assert.equal(mirrored[0].imageUrl, `/${pathname}`);
+  assert.deepEqual([puts, heads, requested, usageReads], [[], [], [], []]);
 });
 
-test('a second store sharing the product pays nothing after the first upload', async () => {
+test('a second store sharing the product downloads nothing more', async () => {
   const offers = [offer('a', 'https://cdn.example/a.jpg')];
-  const { database, claims } = fakeDatabase();
-  const { blob, puts } = fakeBlob();
-  const { fetchImage } = fakeFetch();
+  const { database } = fakeDatabase();
+  const { store, puts } = fakeStore();
+  const { fetchImage, requested } = fakeFetch();
   const run = () =>
     mirrorOfferImages('paknsave', offers, {
       database,
-      blob,
+      store,
       environment,
       fetchImage,
     });
@@ -162,27 +159,46 @@ test('a second store sharing the product pays nothing after the first upload', a
   const first = await run();
   const second = await run();
 
-  assert.equal(puts.length, 1);
-  assert.equal(claims.length, 1);
+  assert.deepEqual([puts.length, requested.length], [1, 1]);
   assert.equal(second[0].imageUrl, first[0].imageUrl);
+});
+
+test('a file already on disk is adopted without downloading it again', async () => {
+  const offers = [offer('a', 'https://cdn.example/a.jpg')];
+  const pathname = productImagePath('paknsave', offers[0]);
+  const { database, stored } = fakeDatabase();
+  const { store, puts, written } = fakeStore();
+  written.set(pathname, 1_024);
+  const { fetchImage, requested } = fakeFetch();
+
+  const mirrored = await mirrorOfferImages('paknsave', offers, {
+    database,
+    store,
+    environment,
+    fetchImage,
+  });
+
+  assert.deepEqual([puts.length, requested.length], [0, 0]);
+  assert.equal(mirrored[0].imageUrl, `/${pathname}`);
+  assert.equal(stored.get(pathname)?.byte_size, 1_024);
 });
 
 test('an image that cannot be fetched is not retried within its retry window', async () => {
   const offers = [offer('a', 'https://cdn.example/a.jpg')];
-  const { database, stored, claims } = fakeDatabase();
-  const { blob, puts } = fakeBlob();
+  const { database, stored } = fakeDatabase();
+  const { store, puts } = fakeStore();
   let attempts = 0;
   const fetchImage = (() => {
     attempts += 1;
     return Promise.resolve(new Response('missing', { status: 404 }));
   }) as unknown as typeof fetch;
 
-  const options = { database, blob, environment, fetchImage };
+  const options = { database, store, environment, fetchImage };
   const first = await mirrorOfferImages('paknsave', offers, options);
   const second = await mirrorOfferImages('paknsave', offers, options);
 
   assert.equal(attempts, 1);
-  assert.deepEqual([puts.length, claims.length], [0, 1]);
+  assert.equal(puts.length, 0);
   assert.equal(first[0].imageUrl, 'https://cdn.example/a.jpg');
   assert.equal(second[0].imageUrl, 'https://cdn.example/a.jpg');
   const row = stored.get(productImagePath('paknsave', offers[0]))!;
@@ -195,16 +211,16 @@ test('a failed image is retried once its retry window has passed', async () => {
   const { database, stored } = fakeDatabase();
   stored.set(productImagePath('paknsave', offers[0]), {
     pathname: productImagePath('paknsave', offers[0]),
-    blob_url: null,
+    stored_url: null,
     status: 'failed',
     retry_after: '2026-01-01T00:00:00.000Z',
   });
-  const { blob, puts } = fakeBlob();
+  const { store, puts } = fakeStore();
   const { fetchImage } = fakeFetch();
 
   await mirrorOfferImages('paknsave', offers, {
     database,
-    blob,
+    store,
     environment,
     fetchImage,
     now: () => new Date('2026-09-07T00:00:00.000Z'),
@@ -213,93 +229,90 @@ test('a failed image is retried once its retry window has passed', async () => {
   assert.equal(puts.length, 1);
 });
 
-test('one run never claims more budget than it can spend', async () => {
+test('one run mirrors at most the per-run maximum', async () => {
   const offers = Array.from({ length: 120 }, (_, index) =>
     offer(`p${index}`, `https://cdn.example/${index}.jpg`),
   );
-  const { database, claims } = fakeDatabase();
-  const { blob, puts } = fakeBlob();
+  const { database, usageReads } = fakeDatabase();
+  const { store, puts } = fakeStore();
   const { fetchImage } = fakeFetch();
 
   await mirrorOfferImages('paknsave', offers, {
     database,
-    blob,
+    store,
     environment,
     fetchImage,
   });
 
-  assert.deepEqual(claims, [{ requested: 48, limit: 8_000 }]);
+  assert.equal(usageReads.length, 1);
   assert.equal(puts.length, 48);
 });
 
-test('an exhausted monthly budget keeps retailer URLs instead of uploading', async () => {
+test('a full store keeps retailer URLs instead of writing more files', async () => {
   const offers = [
     offer('a', 'https://cdn.example/a.jpg'),
     offer('b', 'https://cdn.example/b.jpg'),
   ];
-  const { database, claims } = fakeDatabase(() => 1);
-  const { blob, puts } = fakeBlob();
+  const { database } = fakeDatabase(9_000);
+  const { store, puts } = fakeStore();
   const { fetchImage } = fakeFetch();
 
   const mirrored = await mirrorOfferImages('paknsave', offers, {
     database,
-    blob,
-    environment,
-    fetchImage,
-  });
-
-  assert.deepEqual(claims, [{ requested: 2, limit: 8_000 }]);
-  assert.equal(puts.length, 1);
-  assert.equal(mirrored[1].imageUrl, 'https://cdn.example/b.jpg');
-});
-
-test('a zero budget mirrors nothing but still serves indexed images', async () => {
-  const offers = [
-    offer('a', 'https://cdn.example/a.jpg'),
-    offer('b', 'https://cdn.example/b.jpg'),
-  ];
-  const { database, stored } = fakeDatabase(() => 0);
-  const known = productImagePath('paknsave', offers[0]);
-  stored.set(known, {
-    pathname: known,
-    blob_url: `https://store.public.blob.vercel-storage.com/${known}`,
-    status: 'mirrored',
-    retry_after: null,
-  });
-  const { blob, puts } = fakeBlob();
-  const { fetchImage } = fakeFetch();
-
-  const mirrored = await mirrorOfferImages('paknsave', offers, {
-    database,
-    blob,
-    environment: { ...environment, PRODUCT_IMAGE_MIRROR_MONTHLY_UPLOADS: '0' },
+    store,
+    environment: { PRODUCT_IMAGE_MIRROR_MAX_BYTES: '9000' },
     fetchImage,
   });
 
   assert.equal(puts.length, 0);
-  assert.equal(
-    mirrored[0].imageUrl,
-    `https://store.public.blob.vercel-storage.com/${known}`,
-  );
+  assert.equal(mirrored[0].imageUrl, 'https://cdn.example/a.jpg');
   assert.equal(mirrored[1].imageUrl, 'https://cdn.example/b.jpg');
 });
 
-test('the mirror can be switched off without unlinking the blob store', async () => {
-  const offers = [offer('a', 'https://cdn.example/a.jpg')];
-  const { database, selects } = fakeDatabase();
-  const { blob, puts } = fakeBlob();
+test('a store at its limit still serves images already indexed', async () => {
+  const offers = [
+    offer('a', 'https://cdn.example/a.jpg'),
+    offer('b', 'https://cdn.example/b.jpg'),
+  ];
+  const { database, stored } = fakeDatabase(10);
+  const known = productImagePath('paknsave', offers[0]);
+  stored.set(known, {
+    pathname: known,
+    stored_url: `/${known}`,
+    status: 'mirrored',
+    retry_after: null,
+  });
+  const { store, puts } = fakeStore();
+  const { fetchImage } = fakeFetch();
 
   const mirrored = await mirrorOfferImages('paknsave', offers, {
     database,
-    blob,
-    environment: { ...environment, PRODUCT_IMAGE_MIRROR: 'off' },
+    store,
+    environment: { PRODUCT_IMAGE_MIRROR_MAX_BYTES: '0' },
+    fetchImage,
+  });
+
+  assert.equal(puts.length, 0);
+  assert.equal(mirrored[0].imageUrl, `/${known}`);
+  assert.equal(mirrored[1].imageUrl, 'https://cdn.example/b.jpg');
+});
+
+test('the mirror can be switched off without removing the stored files', async () => {
+  const offers = [offer('a', 'https://cdn.example/a.jpg')];
+  const { database, selects } = fakeDatabase();
+  const { store, puts } = fakeStore();
+
+  const mirrored = await mirrorOfferImages('paknsave', offers, {
+    database,
+    store,
+    environment: { PRODUCT_IMAGE_MIRROR: 'off' },
   });
 
   assert.deepEqual([selects.length, puts.length], [0, 0]);
   assert.equal(mirrored[0].imageUrl, 'https://cdn.example/a.jpg');
 });
 
-test('an unreadable index serves retailer URLs instead of re-uploading', async () => {
+test('an unreadable index serves retailer URLs instead of re-downloading', async () => {
   const offers = [offer('a', 'https://cdn.example/a.jpg')];
   const database = {
     from: () => ({
@@ -308,13 +321,13 @@ test('an unreadable index serves retailer URLs instead of re-uploading', async (
           Promise.resolve({ data: null, error: { message: 'unavailable' } }),
       }),
     }),
-    rpc: () => assert.fail('Budget must not be claimed without the index.'),
+    rpc: () => assert.fail('Store usage must not be read without the index.'),
   } as unknown as MirrorDatabase;
-  const { blob, puts } = fakeBlob();
+  const { store, puts } = fakeStore();
 
   const mirrored = await mirrorOfferImages('paknsave', offers, {
     database,
-    blob,
+    store,
     environment,
   });
 
@@ -322,13 +335,13 @@ test('an unreadable index serves retailer URLs instead of re-uploading', async (
   assert.equal(mirrored[0].imageUrl, 'https://cdn.example/a.jpg');
 });
 
-test('offers without an image never reach the index or the blob store', async () => {
+test('offers without an image never reach the index or the store', async () => {
   const { database, selects } = fakeDatabase();
-  const { blob, puts } = fakeBlob();
+  const { store, puts } = fakeStore();
 
   const mirrored = await mirrorOfferImages('paknsave', [offer('a', null)], {
     database,
-    blob,
+    store,
     environment,
   });
 
@@ -336,68 +349,119 @@ test('offers without an image never reach the index or the blob store', async ()
   assert.equal(mirrored[0].imageUrl, null);
 });
 
-test('a monthly upload budget must be an exact non-negative integer', () => {
-  assert.equal(monthlyUploadBudget({}), 8_000);
+test('the store byte ceiling must be an exact non-negative integer', () => {
+  assert.equal(imageStoreByteLimit({}), 8 * 1024 * 1024 * 1024);
   assert.equal(
-    monthlyUploadBudget({ PRODUCT_IMAGE_MIRROR_MONTHLY_UPLOADS: '12' }),
+    imageStoreByteLimit({ PRODUCT_IMAGE_MIRROR_MAX_BYTES: '12' }),
     12,
   );
-  for (const value of ['-1', '1.5', '8_000', '12 uploads', '1000001']) {
+  for (const value of ['-1', '1.5', '8_000', '12 bytes', '1099511627777']) {
     assert.throws(
-      () =>
-        monthlyUploadBudget({ PRODUCT_IMAGE_MIRROR_MONTHLY_UPLOADS: value }),
+      () => imageStoreByteLimit({ PRODUCT_IMAGE_MIRROR_MAX_BYTES: value }),
       /must be an integer/,
     );
   }
 });
 
-test('seeding adopts existing blobs and previews before it writes', async () => {
-  const { database, stored } = fakeDatabase();
-  const pages = [
-    {
-      blobs: [
-        {
-          pathname: 'product-images/paknsave/a-0123456789abcdef.jpg',
-          url: 'https://store.public.blob.vercel-storage.com/product-images/paknsave/a-0123456789abcdef.jpg',
-        },
-      ],
-      cursor: 'next',
-      hasMore: true,
-    },
-    {
-      blobs: [
-        {
-          pathname: 'product-images/woolworths/b-0123456789abcdef.png',
-          url: 'https://store.public.blob.vercel-storage.com/product-images/woolworths/b-0123456789abcdef.png',
-        },
-      ],
-      hasMore: false,
-    },
-  ];
-  const list = (options: { cursor?: string }) =>
-    Promise.resolve(pages[options.cursor ? 1 : 0]);
-
-  const preview = await seedProductImageIndex({ database, list });
-  assert.deepEqual(
-    [preview.mode, preview.listPages, preview.adopted, preview.written],
-    ['preview', 2, 2, 0],
-  );
-  assert.equal(stored.size, 0);
-
-  const executed = await seedProductImageIndex({
-    database,
-    list,
-    execute: true,
+describe('the filesystem store', () => {
+  let directory: string;
+  let environment: Record<string, string | undefined>;
+  before(async () => {
+    directory = await mkdtemp(path.join(tmpdir(), 'auckland-images-'));
+    environment = { PRODUCT_IMAGE_DIR: directory };
   });
-  assert.deepEqual([executed.mode, executed.written], ['execute', 2]);
-  assert.equal(
-    stored.get('product-images/woolworths/b-0123456789abcdef.png')
-      ?.retailer_slug,
-    'woolworths',
-  );
+
+  it('writes, reads back and reports the size of an image', async () => {
+    const store = createFilesystemImageStore(environment);
+    const pathname = 'product-images/paknsave/a-0123456789abcdef.jpg';
+    assert.equal(await store.head(pathname), null);
+
+    const written = await store.put(
+      pathname,
+      new Uint8Array([1, 2, 3, 4]).buffer,
+      { contentType: 'image/jpeg' },
+    );
+    assert.deepEqual(written, { url: `/${pathname}`, byteSize: 4 });
+    assert.deepEqual(await store.head(pathname), written);
+    assert.deepEqual(
+      [
+        ...(await readFile(
+          path.join(directory, 'paknsave/a-0123456789abcdef.jpg'),
+        )),
+      ],
+      [1, 2, 3, 4],
+    );
+    // Nothing is left behind by the write-then-rename.
+    assert.deepEqual(
+      (await readdir(path.join(directory, 'paknsave'))).filter((file) =>
+        file.endsWith('.tmp'),
+      ),
+      [],
+    );
+  });
+
+  it('refuses a pathname that could escape the directory', async () => {
+    const store = createFilesystemImageStore(environment);
+    for (const pathname of [
+      'product-images/../secrets.jpg',
+      'product-images/paknsave/../../etc/passwd',
+      'other-prefix/paknsave/a-0123456789abcdef.jpg',
+      'product-images/paknsave/a-0123456789abcdef.txt',
+    ]) {
+      await assert.rejects(
+        () =>
+          store.put(pathname, new Uint8Array([1]).buffer, {
+            contentType: 'image/jpeg',
+          }),
+        /unsupported image pathname/i,
+      );
+    }
+  });
+
+  it('adopts files found on disk, previewing before it writes', async () => {
+    const adoptDirectory = await mkdtemp(
+      path.join(tmpdir(), 'auckland-adopt-'),
+    );
+    const adoptEnvironment = { PRODUCT_IMAGE_DIR: adoptDirectory };
+    await mkdir(path.join(adoptDirectory, 'paknsave'), { recursive: true });
+    await mkdir(path.join(adoptDirectory, 'woolworths'), { recursive: true });
+    await writeFile(
+      path.join(adoptDirectory, 'paknsave/a-0123456789abcdef.jpg'),
+      new Uint8Array([1, 2]),
+    );
+    await writeFile(
+      path.join(adoptDirectory, 'woolworths/b-0123456789abcdef.png'),
+      new Uint8Array([1, 2, 3]),
+    );
+    // Not a recognised image pathname, so it is not registered.
+    await writeFile(path.join(adoptDirectory, 'woolworths/notes.txt'), 'skip');
+
+    const { database, stored } = fakeDatabase();
+    const preview = await adoptStoredImages({
+      database,
+      environment: adoptEnvironment,
+    });
+    assert.deepEqual(
+      [preview.mode, preview.found, preview.bytes, preview.written],
+      ['preview', 2, 5, 0],
+    );
+    assert.equal(stored.size, 0);
+
+    const executed = await adoptStoredImages({
+      database,
+      environment: adoptEnvironment,
+      execute: true,
+    });
+    assert.deepEqual([executed.mode, executed.written], ['execute', 2]);
+    assert.equal(
+      stored.get('product-images/woolworths/b-0123456789abcdef.png')
+        ?.retailer_slug,
+      'woolworths',
+    );
+  });
 });
 
-describe('blob upload budget in Postgres', () => {
+describe('the product image store index in Postgres', () => {
   let db: PGlite;
   before(async () => {
     db = await PGlite.create();
@@ -413,28 +477,32 @@ describe('blob upload budget in Postgres', () => {
     await db?.close();
   });
 
-  async function claim(requested: number, limit: number) {
-    return (
-      await db.query<{ granted: number }>(
-        'select claim_blob_upload_slots($1, $2) as granted',
-        [requested, limit],
-      )
-    ).rows[0].granted;
-  }
-
-  it('grants only what is left of the monthly limit', async () => {
-    assert.equal(await claim(40, 100), 40);
-    assert.equal(await claim(80, 100), 60);
-    assert.equal(await claim(10, 100), 0);
-    const { rows } = await db.query<{ uploads: number }>(
-      'select uploads from blob_upload_budget',
+  it('sums only the bytes of images that are actually stored', async () => {
+    await db.exec(`
+      insert into product_image_mirrors
+        (pathname, retailer_slug, stored_url, byte_size, status, retry_after)
+      values
+        ('product-images/paknsave/a-0123456789abcdef.jpg', 'paknsave', '/product-images/paknsave/a-0123456789abcdef.jpg', 400, 'mirrored', null),
+        ('product-images/paknsave/b-0123456789abcdef.jpg', 'paknsave', '/product-images/paknsave/b-0123456789abcdef.jpg', 600, 'mirrored', null),
+        ('product-images/paknsave/c-0123456789abcdef.jpg', 'paknsave', null, null, 'failed', now());
+    `);
+    const { rows } = await db.query<{ bytes: string }>(
+      'select product_image_store_bytes() as bytes',
     );
-    assert.deepEqual(rows, [{ uploads: 100 }]);
+    assert.equal(Number(rows[0].bytes), 1_000);
   });
 
-  it('rejects negative requests and limits', async () => {
-    await assert.rejects(() => claim(-1, 100), /must not be negative/);
-    await assert.rejects(() => claim(1, -1), /must not be negative/);
+  it('rejects a stored URL that is neither a local path nor https', async () => {
+    await assert.rejects(
+      () =>
+        db.exec(`
+          insert into product_image_mirrors
+            (pathname, retailer_slug, stored_url, status)
+          values
+            ('product-images/paknsave/d-0123456789abcdef.jpg', 'paknsave', 'file:///etc/passwd', 'mirrored');
+        `),
+      /stored_url/,
+    );
   });
 
   it('reports the mirror index in database readiness', async () => {
@@ -442,6 +510,6 @@ describe('blob upload budget in Postgres', () => {
       result: { productImageMirrorIndex: boolean; schemaVersion: string };
     }>('select database_readiness() as result');
     assert.equal(rows[0].result.productImageMirrorIndex, true);
-    assert.equal(rows[0].result.schemaVersion, '20260907140000');
+    assert.equal(rows[0].result.schemaVersion, '20260909120000');
   });
 });

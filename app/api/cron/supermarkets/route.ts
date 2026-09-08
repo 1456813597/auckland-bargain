@@ -1,4 +1,4 @@
-import { isSupabaseConfigured } from '@/db/supabase';
+import { isDatabaseConfigured } from '@/db/client';
 import { FourSquareCollector } from '@/lib/collectors/foursquare';
 import {
   FreshChoiceCollector,
@@ -11,18 +11,20 @@ import {
   collectionScope,
   type CompleteRetailerCollector,
 } from '@/lib/collectors/comparison-collection';
-import { isAuthorizedCronRequest } from '@/lib/http/cron-auth';
+import {
+  collectionTrigger,
+  isAuthorizedCronRequest,
+} from '@/lib/http/cron-auth';
 import {
   CollectionAlreadyRunningError,
   createCollectionRun,
   ingestOffers,
   markCollectionRunFailed,
   type RetailerIdentity,
-} from '@/lib/ingestion/supabase';
+} from '@/lib/ingestion/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
 
 function positiveInteger(value: string | undefined, fallback: number) {
   const parsed = Number.parseInt(value ?? '', 10);
@@ -32,7 +34,7 @@ function positiveInteger(value: string | undefined, fallback: number) {
 async function collectRetailer(
   collector: CompleteRetailerCollector,
   retailer: RetailerIdentity,
-  trigger: 'vercel-cron' | 'manual',
+  trigger: 'scheduler' | 'manual',
 ) {
   let runId: number | undefined;
   try {
@@ -81,17 +83,14 @@ export async function GET(request: Request) {
   if (!isAuthorizedCronRequest(request)) {
     return Response.json({ error: 'Unauthorized.' }, { status: 401 });
   }
-  if (!isSupabaseConfigured()) {
+  if (!isDatabaseConfigured()) {
     return Response.json(
       { error: 'Supabase is not configured on the server.' },
       { status: 503 },
     );
   }
 
-  const trigger =
-    request.headers.get('user-agent') === 'vercel-cron/1.0'
-      ? 'vercel-cron'
-      : 'manual';
+  const trigger = collectionTrigger(request);
   const jobs: Array<{
     collector: CompleteRetailerCollector;
     retailer: RetailerIdentity;
@@ -199,7 +198,7 @@ export async function GET(request: Request) {
       {
         ok: false,
         error:
-          'One or more supermarket collections failed. Check function logs.',
+          'One or more supermarket collections failed. Check the application logs.',
         results: results.map((result) =>
           result.status === 'fulfilled'
             ? result.value

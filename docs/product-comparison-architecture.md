@@ -23,7 +23,7 @@ Retailer source page
 ## Automated data flow
 
 ```text
-Weekly Vercel cron
+Weekly scheduler container
         |
         +-- Woolworths collector
         |

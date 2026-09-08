@@ -1,5 +1,9 @@
-import { isSupabaseConfigured } from '@/db/supabase';
-import { drainCollectionQueue, parseDrainLimit } from '@/lib/collection/queue';
+import { isDatabaseConfigured } from '@/db/client';
+import {
+  drainCollectionQueue,
+  drainSettings,
+  parseDrainLimit,
+} from '@/lib/collection/queue';
 import {
   retailerDefinitions,
   type RegisteredRetailer,
@@ -8,7 +12,6 @@ import { isAuthorizedCronRequest } from '@/lib/http/cron-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
 
 // Registry-driven weekly collection. Unlike the per-banner routes, the stores
 // here come from `collection_targets`, so a store only runs while its recorded
@@ -19,7 +22,7 @@ export async function GET(request: Request) {
   if (!isAuthorizedCronRequest(request)) {
     return Response.json({ error: 'Unauthorized.' }, { status: 401 });
   }
-  if (!isSupabaseConfigured()) {
+  if (!isDatabaseConfigured()) {
     return Response.json(
       { error: 'Supabase is not configured on the server.' },
       { status: 503 },
@@ -35,7 +38,7 @@ export async function GET(request: Request) {
     return Response.json({ error: 'Unknown retailer.' }, { status: 400 });
   let limit: number;
   try {
-    limit = parseDrainLimit(parameters.get('limit'));
+    limit = parseDrainLimit(parameters.get('limit'), drainSettings());
   } catch (error) {
     return Response.json(
       {

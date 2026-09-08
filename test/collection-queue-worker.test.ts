@@ -7,6 +7,7 @@ import {
   syncCollectionTargets,
   parseQueuedCollection,
 } from '../lib/collection/queue';
+import type { Database } from '../db/client';
 import type { RegisteredStore } from '../lib/collection/store-registry';
 import type { CompleteCollection } from '../lib/collectors/types';
 
@@ -230,9 +231,11 @@ test('registry sync validates before writing, batches by 250 and only upserts ex
     sourceStoreId: `source-${index}`,
     storeOrigin: `https://store-${index}.store.freshchoice.co.nz`,
   }));
+  // The Supabase client's own generics are far deeper than the narrow
+  // `Database` contract the application depends on.
+  const targets = database as unknown as Pick<Database, 'from'>;
   assert.equal(
-    (await syncCollectionTargets({ schemaVersion: 1, stores }, database))
-      .synced,
+    (await syncCollectionTargets({ schemaVersion: 1, stores }, targets)).synced,
     501,
   );
   assert.deepEqual(batches, [250, 250, 1]);
@@ -242,7 +245,7 @@ test('registry sync validates before writing, batches by 250 and only upserts ex
         schemaVersion: 1,
         stores: [...stores, { ...store, cookieEnv: 'secret' }],
       },
-      database,
+      targets,
     ),
     /Cookie configuration/,
   );

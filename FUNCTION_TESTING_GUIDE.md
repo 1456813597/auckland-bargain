@@ -15,7 +15,7 @@
   -> Supabase current_deals + offer_history
   -> 商品卡片、搜索/筛选/排序、90 天历史弹窗
 
-Vercel Cron 或管理员手动触发
+调度容器（scheduler）或管理员手动触发
   -> GET /api/cron/woolworths 或 /api/cron/paknsave
   -> 零售商公开接口
   -> Supabase retailers/stores/products/current_offers/offer_history
@@ -25,14 +25,14 @@ Vercel Cron 或管理员手动触发
 
 项目现有接口：
 
-| 路径 | 功能 | 正常结果 | 是否写数据 |
-| --- | --- | --- | --- |
-| `/` | 商品优惠仪表盘 | `200`，页面可交互 | 否 |
-| `/api/deals` | 当前优惠列表及查询 | `200` JSON | 否 |
-| `/api/products/:id` | 单个商品详情 | 存在时 `200`，不存在时 `404` | 否 |
-| `/api/health/ready` | 应用与数据库就绪检查 | 就绪时 `200`，否则 `503` | 否 |
-| `/api/cron/woolworths` | Woolworths 采集 | 未授权 `401`；成功 `200` | **是** |
-| `/api/cron/paknsave` | PAK'nSAVE 采集 | 未授权 `401`；成功 `200` | **是** |
+| 路径                   | 功能                 | 正常结果                     | 是否写数据 |
+| ---------------------- | -------------------- | ---------------------------- | ---------- |
+| `/`                    | 商品优惠仪表盘       | `200`，页面可交互            | 否         |
+| `/api/deals`           | 当前优惠列表及查询   | `200` JSON                   | 否         |
+| `/api/products/:id`    | 单个商品详情         | 存在时 `200`，不存在时 `404` | 否         |
+| `/api/health/ready`    | 应用与数据库就绪检查 | 就绪时 `200`，否则 `503`     | 否         |
+| `/api/cron/woolworths` | Woolworths 采集      | 未授权 `401`；成功 `200`     | **是**     |
+| `/api/cron/paknsave`   | PAK'nSAVE 采集       | 未授权 `401`；成功 `200`     | **是**     |
 
 本项目现有自动化测试覆盖零售商数据映射、分页/重试/门店一致性、PAK'nSAVE 匿名鉴权及 Cron Bearer Token 校验，但尚未包含浏览器 E2E、真实 Supabase 集成测试或真实零售商接口测试。因此“`npm test` 通过”不等于整个系统已通过。
 
@@ -71,18 +71,19 @@ npm ci
 
 本地环境文件是 `.env.local`，它已被 `.gitignore` 排除。不要覆盖已有文件，也不要在日志、截图或测试报告中粘贴变量值。项目可能使用以下变量：
 
-| 变量 | 用途 | 要求 |
-| --- | --- | --- |
-| `SUPABASE_URL` | Supabase 项目 URL | 集成/生产必需 |
-| `SUPABASE_SECRET_KEY` | 服务端 Supabase 密钥 | 集成/生产必需，绝不能加 `NEXT_PUBLIC_` |
-| `SUPABASE_SERVICE_ROLE_KEY` | 旧版密钥名 | 仅作为上一个变量的兼容替代 |
-| `CRON_SECRET` | Cron Bearer Token | 至少 16 个字符 |
-| `BLOB_READ_WRITE_TOKEN` | 将商品图片复制到 Vercel Blob | 真实采集建议配置 |
-| `PRODUCT_IMAGE_MIRROR` | 设为 `off` 可停止镜像新图片 | 可选；默认开启 |
-| `PRODUCT_IMAGE_MIRROR_MONTHLY_UPLOADS` | 每个 UTC 月的 Blob 高级操作上限 | 可选；默认 8000 |
-| `WOOLWORTHS_COOKIE` | 可选的选店会话 Cookie | 仅服务端，禁止提交或打印 |
-| `PAKNSAVE_STORE_ID` | 精确的 PAK'nSAVE 门店 UUID | 可选；默认 Royal Oak |
-| `SITE_URL` | Metadata 的站点基址 | 生产环境应为正式 HTTPS URL |
+| 变量                             | 用途                        | 要求                                            |
+| -------------------------------- | --------------------------- | ----------------------------------------------- |
+| `SUPABASE_URL`                   | Supabase 项目 URL           | 集成/生产必需                                   |
+| `SUPABASE_SECRET_KEY`            | 服务端 Supabase 密钥        | 集成/生产必需，绝不能加 `NEXT_PUBLIC_`          |
+| `SUPABASE_SERVICE_ROLE_KEY`      | 旧版密钥名                  | 仅作为上一个变量的兼容替代                      |
+| `CRON_SECRET`                    | Cron Bearer Token           | 至少 16 个字符                                  |
+| `DATABASE_URL`                   | 自建 Postgres 直连串        | 与 Supabase 两选一，两者都填时它优先            |
+| `PRODUCT_IMAGE_DIR`              | 商品图片存放目录            | 容器内为挂载卷，本地默认 `.data/product-images` |
+| `PRODUCT_IMAGE_MIRROR`           | 设为 `off` 可停止镜像新图片 | 可选；默认开启                                  |
+| `PRODUCT_IMAGE_MIRROR_MAX_BYTES` | 图片目录占用磁盘上限        | 可选；默认 8 GiB                                |
+| `WOOLWORTHS_COOKIE`              | 可选的选店会话 Cookie       | 仅服务端，禁止提交或打印                        |
+| `PAKNSAVE_STORE_ID`              | 精确的 PAK'nSAVE 门店 UUID  | 可选；默认 Royal Oak                            |
+| `SITE_URL`                       | Metadata 的站点基址         | 生产环境应为正式 HTTPS URL                      |
 
 仅确认变量“是否存在”，不要输出变量值：
 
@@ -184,7 +185,7 @@ Demo 模式没有数据库，所以就绪检查返回 `503` 是正确行为：
 curl.exe -sS -i "$BaseUrl/api/health/ready"
 ```
 
-响应体应为 `ready: false`，并显示 `checks.supabaseConfigured: false`。这不是 Demo 模式的故障。
+响应体应为 `ready: false`，并显示 `checks.databaseConfigured: false`。这不是 Demo 模式的故障。
 
 确认 Cron 安全边界，以下请求不会写数据：
 
@@ -199,25 +200,25 @@ curl.exe -sS -i -H "Authorization: Bearer definitely-wrong" "$BaseUrl/api/cron/p
 
 打开 `http://localhost:3000`，同时打开浏览器开发者工具的 Console 和 Network。按下表逐项测试：
 
-| 编号 | 操作 | 预期结果 |
-| --- | --- | --- |
-| UI-01 | 首次打开首页 | 标题、统计区和商品卡片显示；Network 中 `/api/deals` 为 `200` |
-| UI-02 | 查看页脚 | Demo 模式显示 `Preview mode` 提示 |
-| UI-03 | 搜索 `butter` | 只保留名称、品牌、门店或分类匹配项，匹配数量同步变化 |
-| UI-04 | 点击清除搜索按钮 | 搜索框清空，全部符合其他筛选条件的结果恢复 |
-| UI-05 | 切换分类按钮 | 只显示该分类；选中态清晰 |
-| UI-06 | 切换 retailer 下拉框 | 只显示选择的零售商 |
-| UI-07 | 关闭 `Member prices` | 所有 `memberOnly: true` 商品消失；重新开启后恢复 |
-| UI-08 | 选择 `Best score` | 分数从高到低排列 |
-| UI-09 | 选择 `Biggest saving` | 相对 90 天均价的折扣百分比从高到低排列 |
-| UI-10 | 选择 `Lowest price` | 商品价格从低到高排列 |
-| UI-11 | 组合搜索和筛选得到零结果 | 显示 `No matching deals` 空状态 |
-| UI-12 | 点击 `Reset all filters` | 搜索、分类、零售商和会员价选项恢复默认值 |
-| UI-13 | 点击商品卡片箭头 | 弹出 90 天价格历史，今日价、均价、最低价和图表可见 |
-| UI-14 | 用 Close、右上角、Esc 和点击遮罩关闭弹窗 | 弹窗关闭，焦点返回合理位置 |
-| UI-15 | 点击 `Refresh data` | 按钮短暂进入 Refreshing 状态，只发起一次 `/api/deals` 请求 |
-| UI-16 | 断网后点击刷新 | 页面不崩溃；Console 有明确错误；屏幕阅读器状态区收到失败消息 |
-| UI-17 | 商品图片加载失败 | 页面布局不应整体崩坏，其他商品仍可操作 |
+| 编号  | 操作                                     | 预期结果                                                     |
+| ----- | ---------------------------------------- | ------------------------------------------------------------ |
+| UI-01 | 首次打开首页                             | 标题、统计区和商品卡片显示；Network 中 `/api/deals` 为 `200` |
+| UI-02 | 查看页脚                                 | Demo 模式显示 `Preview mode` 提示                            |
+| UI-03 | 搜索 `butter`                            | 只保留名称、品牌、门店或分类匹配项，匹配数量同步变化         |
+| UI-04 | 点击清除搜索按钮                         | 搜索框清空，全部符合其他筛选条件的结果恢复                   |
+| UI-05 | 切换分类按钮                             | 只显示该分类；选中态清晰                                     |
+| UI-06 | 切换 retailer 下拉框                     | 只显示选择的零售商                                           |
+| UI-07 | 关闭 `Member prices`                     | 所有 `memberOnly: true` 商品消失；重新开启后恢复             |
+| UI-08 | 选择 `Best score`                        | 分数从高到低排列                                             |
+| UI-09 | 选择 `Biggest saving`                    | 相对 90 天均价的折扣百分比从高到低排列                       |
+| UI-10 | 选择 `Lowest price`                      | 商品价格从低到高排列                                         |
+| UI-11 | 组合搜索和筛选得到零结果                 | 显示 `No matching deals` 空状态                              |
+| UI-12 | 点击 `Reset all filters`                 | 搜索、分类、零售商和会员价选项恢复默认值                     |
+| UI-13 | 点击商品卡片箭头                         | 弹出 90 天价格历史，今日价、均价、最低价和图表可见           |
+| UI-14 | 用 Close、右上角、Esc 和点击遮罩关闭弹窗 | 弹窗关闭，焦点返回合理位置                                   |
+| UI-15 | 点击 `Refresh data`                      | 按钮短暂进入 Refreshing 状态，只发起一次 `/api/deals` 请求   |
+| UI-16 | 断网后点击刷新                           | 页面不崩溃；Console 有明确错误；屏幕阅读器状态区收到失败消息 |
+| UI-17 | 商品图片加载失败                         | 页面布局不应整体崩坏，其他商品仍可操作                       |
 
 再执行以下兼容性与可访问性检查：
 
@@ -227,24 +228,23 @@ curl.exe -sS -i -H "Authorization: Bearer definitely-wrong" "$BaseUrl/api/cron/p
 - 检查 Console 没有 React hydration、图片域名、未处理 Promise 或图表尺寸错误。
 - 检查 Network 没有意外 `4xx/5xx`；商品图片的个别上游失败应与应用接口失败区分记录。
 
-## 6. 第三阶段：本地生产模式 + 测试 Supabase
+## 6. 第三阶段：本地生产模式 + 测试数据库
 
-此阶段必须使用独立的测试 Supabase 项目，不能把开发采集直接指向生产数据库。
+此阶段必须使用独立的测试数据库（一个测试用 Supabase 项目，或另一台机器上的 Postgres），不能把开发采集直接指向生产数据库。
 
 ### 6.1 准备测试数据库
 
-安装并登录 Supabase CLI 后：
+把 `DATABASE_URL` 指向测试库（Supabase 用它的直连串 `POSTGRES_URL_NON_POOLING`），然后：
 
 ```powershell
-supabase link --project-ref YOUR_TEST_PROJECT_REF
-supabase migration list
-supabase db push
-supabase db push --dry-run
+npm run db:migrate:check
+npm run db:migrate
+npm run db:migrate:check
 ```
 
-预期最后一条命令没有待应用迁移。不要通过 HTTP 路由或 SQL Editor 手工执行迁移文件；迁移必须以 `supabase/migrations` 为准。
+预期最后一条命令报告没有待应用迁移。同一套 SQL 对 Supabase 和自建 Postgres 都适用。不要通过 HTTP 路由或 SQL Editor 手工执行迁移文件；迁移必须以 `supabase/migrations` 为准。
 
-在 `.env.local` 中配置测试项目的 `SUPABASE_URL`、`SUPABASE_SECRET_KEY`、至少 16 字符的 `CRON_SECRET`，以及可选的 Blob/门店变量。然后运行：
+在 `.env.local` 中配置 `DATABASE_URL`（或 Supabase 的 `SUPABASE_URL` + `SUPABASE_SECRET_KEY`）、至少 16 字符的 `CRON_SECRET`，以及可选的图片和门店变量。然后运行：
 
 ```powershell
 npm run release:ready
@@ -255,7 +255,7 @@ npm run release:ready
 - `ready: true`
 - `checks.cronSecretConfigured: true`
 - 数据库的所有 readiness checks 均为 `true`
-- `schemaVersion` 为 `20260831160000`
+- `schemaVersion` 为 `20260909120000`
 
 ### 6.2 用真实构建产物启动
 
@@ -349,7 +349,7 @@ limit 20;
 - 当前优惠数量不是异常归零，也没有明显重复商品。
 - `effective_price_cents` 为正整数 NZ cents。
 - 会员价不会错误写入普通促销价字段。
-- 图片迁移到 Blob 后 URL 位于 `product-images/`；单张图片复制失败不应导致整轮价格采集失败。
+- 镜像后的图片 URL 位于 `/product-images/`，文件确实写进了 `PRODUCT_IMAGE_DIR`；单张图片失败不应导致整轮价格采集失败。
 
 ## 7. 第四阶段：远程生产实例
 
@@ -359,10 +359,16 @@ limit 20;
 
 ```powershell
 $BaseUrl = 'https://YOUR_PRODUCTION_DOMAIN'
-vercel inspect $BaseUrl
 ```
 
-先确认该 URL 是当前 Production 部署。生产发布由 Vercel Git Integration 和仓库中的 `build:vercel` 命令管理：测试、类型检查、Lint、数据库迁移、readiness、Next.js 构建都成功后才发布。还应检查对应 Vercel Build Logs 全部通过。
+在服务器上确认正在运行的镜像：
+
+```bash
+docker compose ps
+docker compose config --images
+```
+
+镜像由 GitHub Actions 在合并到 `main` 后构建，CI 的测试、类型检查、Lint 和构建全部通过才会推送到 GHCR。部署前的迁移是 `docker compose --profile migrate run --rm migrate`，它失败就不应继续 `up -d`。
 
 ### 7.2 生产只读冒烟测试
 
@@ -421,15 +427,15 @@ if ($product.data.id -ne $productionDeals.data[0].id) { throw 'Product detail ID
 
 - 已确认 Production URL 和当前部署版本。
 - readiness 为 `200`。
-- Vercel Production Build Logs 中的数据库迁移和部署步骤成功。
+- GitHub Actions 的 CI 和镜像构建成功，服务器上的迁移命令已执行完成。
 - 已检查当前没有同门店的 `running` 采集。
 - 已告知相关人员本次测试会写生产数据并调用外部零售商。
-- 有查看 Vercel Function Logs 和 Supabase 数据的权限。
+- 有查看容器日志和数据库数据的权限。
 
 先打开实时日志：
 
 ```powershell
-vercel logs $BaseUrl --follow
+docker compose logs -f app scheduler
 ```
 
 在另一个终端一次调用一个采集器：
@@ -447,12 +453,12 @@ Remove-Variable CronSecret
 1. HTTP `200` 且 `ok: true`。
 2. 响应门店是预期门店：Woolworths 默认 Glenfield（source id `9171`），PAK'nSAVE 默认 Royal Oak。
 3. `pagesCollected`、`totalItemsReported` 和持久化数量非异常值。
-4. Vercel 日志没有未处理异常、密钥、Cookie 或完整 Authorization Header。
+4. 容器日志没有未处理异常、密钥、Cookie 或完整 Authorization Header。
 5. `collection_runs` 最终为 `succeeded`，没有残留 `running`。
 6. `/api/deals` 的 `meta.updatedAt` 更新，数据没有异常清空。
 7. 首页刷新后显示新数据，商品详情和 90 天历史仍可读取。
 
-生产 Cron 配置为每天 `17:10 UTC` 和 `17:25 UTC`。这对应奥克兰标准时约次日 `05:10/05:25`，夏令时约次日 `06:10/06:25`。定时任务只在 Production 部署运行；测试后还要在 Vercel Cron/Logs 中确认下一次自动调度正常。
+定时任务的排期在 `deploy/cron-jobs.json`，由 scheduler 容器按 `CRON_TZ`（默认 `Pacific/Auckland`）渲染成 crontab：队列任务每小时一次，六个品牌任务在周一凌晨到上午之间错开 70 分钟。测试后用 `docker compose logs scheduler | head -20` 确认最终排期与预期一致。
 
 ## 8. 性能、稳定性和安全补充检查
 
@@ -466,7 +472,7 @@ Remove-Variable CronSecret
 - 搜索公开 JS 和 HTML 响应，确认没有数据库密钥、Bearer Token、Cookie、内部错误堆栈或 Supabase管理凭据。
 - 对 Cron 只做少量已知错误 Token 测试，不进行暴力测试。
 - 检查 Supabase 的 `anon`/`authenticated` 角色不能直接读取这些业务表和 `current_deals`，应用只通过服务端密钥读取。
-- 查看最近失败采集、函数耗时和 300 秒超时风险；确认失败不会把不完整快照标记为当前数据。
+- 查看最近失败采集和单次耗时；确认失败不会把不完整快照标记为当前数据。单次调用超过 `CRON_TIMEOUT_SECONDS` 会被调度容器判为失败。
 
 ## 9. 推荐的发布回归顺序
 
@@ -477,10 +483,10 @@ Remove-Variable CronSecret
 2. npm run typecheck
 3. npm run lint
 4. npm run build
-5. 测试 Supabase migration list / db push --dry-run
+5. npm run db:migrate:check（测试库）
 6. npm run release:ready
 7. 本地生产模式 API + UI
-8. Vercel Production 构建和部署成功
+8. GitHub Actions 镜像构建成功，服务器 pull + migrate + up -d
 9. 生产 readiness
 10. 生产只读 API 冒烟
 11. 生产 UI 关键路径
@@ -501,16 +507,16 @@ Remove-Variable CronSecret
 - 测试时间（Pacific/Auckland）：
 - 测试人：
 
-| 边界 | 状态 | 证据 |
-| --- | --- | --- |
-| 自动化测试、类型、Lint、构建 | 通过/失败 | 命令退出码或日志链接 |
-| 首页渲染 | 通过/失败 | 截图、Console、Network |
-| 浏览器 -> `/api/deals` | 通过/失败 | 状态码、meta、样例响应 |
-| `/api/deals` -> Supabase | 通过/失败 | readiness、只读 SQL 结果 |
-| Cron 鉴权 | 通过/失败 | 401 响应 |
-| 采集器 -> 零售商 | 通过/失败/未执行 | 函数日志、页数、门店 |
-| 采集器 -> Supabase | 通过/失败/未执行 | run id、status、offers_seen |
-| 新数据 -> UI | 通过/失败/未执行 | updatedAt、页面截图 |
+| 边界                         | 状态             | 证据                        |
+| ---------------------------- | ---------------- | --------------------------- |
+| 自动化测试、类型、Lint、构建 | 通过/失败        | 命令退出码或日志链接        |
+| 首页渲染                     | 通过/失败        | 截图、Console、Network      |
+| 浏览器 -> `/api/deals`       | 通过/失败        | 状态码、meta、样例响应      |
+| `/api/deals` -> Supabase     | 通过/失败        | readiness、只读 SQL 结果    |
+| Cron 鉴权                    | 通过/失败        | 401 响应                    |
+| 采集器 -> 零售商             | 通过/失败/未执行 | 函数日志、页数、门店        |
+| 采集器 -> Supabase           | 通过/失败/未执行 | run id、status、offers_seen |
+| 新数据 -> UI                 | 通过/失败/未执行 | updatedAt、页面截图         |
 
 ### 发现的问题
 

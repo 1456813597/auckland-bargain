@@ -1,9 +1,14 @@
 # Auckland Bargain
 
-A New Zealand grocery comparison app built with Next.js 16, Supabase and
-Vercel. It follows PriceSpy's useful core flow—search, compare equivalent
-offers, inspect recent movement, then visit the retailer—but applies it to
-store-aware supermarket prices.
+A New Zealand grocery comparison app built with Next.js 16 and Postgres, and
+deployed as two containers on a server you control. It follows PriceSpy's
+useful core flow (search, compare equivalent offers, inspect recent movement,
+then visit the retailer) but applies it to store-aware supermarket prices.
+
+The database can be a Supabase project or a Postgres you installed yourself;
+product images are stored on a mounted volume; collection is scheduled by a
+sidecar container. [中文部署教程（宝塔面板）](docs/deploy-baota.md) covers a
+full server setup step by step.
 
 ## Current product flow
 
@@ -74,21 +79,22 @@ default limit that is up to 504 store-jobs a week. An invocation with nothing
 eligible costs three database calls and contacts no supermarket — which is the
 current state, because every bundled registry entry is `access.status: pending`.
 
-`vercel.json` also keeps six protected weekly production jobs every Sunday UTC,
-which is Monday morning in Auckland. These are the legacy environment-selected
-single-store routes; they do **not** read the registry or its access gate:
+`deploy/cron-jobs.json` also keeps six protected weekly jobs, every Monday in
+New Zealand time. These are the legacy environment-selected single-store
+routes; they do **not** read the registry or its access gate:
 
-- `/api/cron/woolworths` at `16:10 UTC`
-- `/api/cron/supermarkets?retailer=paknsave` at `17:20 UTC`
-- `/api/cron/supermarkets?retailer=newworld` at `18:30 UTC`
-- `/api/cron/supermarkets?retailer=foursquare` at `19:40 UTC`
-- `/api/cron/supermarkets?retailer=freshchoice` at `20:50 UTC`
-- `/api/cron/supermarkets?retailer=supervalue` at `22:00 UTC`
+- `/api/cron/woolworths` at `04:10`
+- `/api/cron/supermarkets?retailer=paknsave` at `05:20`
+- `/api/cron/supermarkets?retailer=newworld` at `06:30`
+- `/api/cron/supermarkets?retailer=foursquare` at `07:40`
+- `/api/cron/supermarkets?retailer=freshchoice` at `08:50`
+- `/api/cron/supermarkets?retailer=supervalue` at `10:00`
 
-Each banner gets its own function invocation and time budget. Jobs are spaced
-70 minutes apart to accommodate Hobby's hour-level scheduling precision;
-current [Vercel limits](https://vercel.com/docs/cron-jobs/usage-and-pricing)
-allow 100 cron jobs per project. Retire a legacy route once its store is an
+The scheduler container renders that table into a crontab at startup, reading
+the times in `CRON_TZ` (`Pacific/Auckland` by default), so daylight saving does
+not move them. Every job can be re-timed with its own environment variable, or
+switched off entirely with `off`. Jobs are spaced 70 minutes apart so two
+collections never overlap. Retire a legacy route once its store is an
 approved registry target, so the same store is not collected twice a week; until
 then a same-week overlap replaces that store's current observation rather than
 corrupting it. The unfiltered supermarkets endpoint remains
@@ -125,51 +131,70 @@ Newly covered, cheaper stores do not count as price reductions. Prior captures
 can be older than last week after a missed run; the interface shows collection
 dates and does not label them as last week's prices.
 
+## Databases
+
+The application talks to one narrow interface (`db/client.ts`) with two drivers
+behind it:
+
+- **Supabase**, through `@supabase/supabase-js`, when `SUPABASE_URL` and
+  `SUPABASE_SECRET_KEY` are set.
+- **Any Postgres**, through a direct connection, when `DATABASE_URL` is set —
+  including one installed by the aaPanel/Baota PostgreSQL manager. The
+  PostgREST call shapes the application uses are answered with SQL by
+  `db/postgres/rest.ts`, which `test/postgres-client.test.ts` exercises against
+  the real migrated schema.
+
+`DATABASE_URL` wins when both are configured; `DATABASE_DRIVER` forces one.
+Migrations are the same files either way:
+
+```bash
+npm run db:migrate          # apply pending migrations
+npm run db:migrate:check    # list them without applying
+```
+
+The runner records applied files in `supabase_migrations.schema_migrations`,
+the table the Supabase CLI uses, so `supabase db push` and this runner never
+apply the same file twice. On a self-hosted server it also creates the `anon`,
+`authenticated` and `service_role` roles the migrations grant to.
+
 ## Local setup
 
-Requires Node.js 22.13 or newer. Supabase is optional for fallback UI work.
+Requires Node.js 22.13 or newer. A database is optional for fallback UI work.
 
 ```bash
 npm install
-supabase link --project-ref your-project-ref
-supabase db push
-```
-
-Copy `.env.example` to `.env.local`. For database-backed collection set:
-
-- `SUPABASE_URL`
-- `SUPABASE_SECRET_KEY` (server-only; the legacy service-role name also works)
-- `CRON_SECRET` (at least 16 random characters)
-- `BLOB_READ_WRITE_TOKEN` for durable product images
-- `PRODUCT_IMAGE_MIRROR=off` to stop mirroring new images without unlinking the store
-- `PRODUCT_IMAGE_MIRROR_MONTHLY_UPLOADS` to cap Blob advanced operations per month (default 8000)
-
-Then run:
-
-```bash
+cp .env.example .env.local
 npm run dev
 ```
 
-Never prefix a Supabase secret with `NEXT_PUBLIC_` or commit `.env.local`.
+For database-backed collection set `DATABASE_URL` (or the Supabase pair) and
+`CRON_SECRET` (at least 16 random characters). Never prefix a database secret
+with `NEXT_PUBLIC_`, and never commit `.env.local`.
 
-### Product image mirroring cost
+### Product images
 
-Vercel Blob bills `put`, `copy` and `list` as advanced operations, and the
-included monthly allowance is small (10,000 on Hobby, after which the store is
-locked for 30 days). Collection therefore never lists the store: whether an
-image is already mirrored is answered from the `product_image_mirrors` table,
-so a store whose images are all mirrored spends zero Blob operations, and the
-same product collected at a second store of the same banner spends none either.
-New uploads draw on a shared monthly budget; once it is used the collector keeps
-retailer image URLs rather than exceeding the plan.
+Mirrored retailer images are written to `PRODUCT_IMAGE_DIR` (a mounted volume
+in production) and served from `/product-images/...`, either by the app or
+directly by a reverse proxy pointed at the same directory. Whether an image is
+already stored is answered by the `product_image_mirrors` table rather than by
+touching the disk, so the same product collected at a second store of the same
+banner costs nothing, and an image that cannot be fetched is retried no sooner
+than 30 days later.
 
-After deploying this schema for the first time, adopt blobs that were uploaded
-before the index existed, so they are not uploaded a second time:
+`PRODUCT_IMAGE_MIRROR_MAX_BYTES` caps the store (8 GiB by default). Reaching it
+keeps retailer URLs instead of filling the volume. `PRODUCT_IMAGE_MIRROR=off`
+stops mirroring new images while still serving the ones already stored.
+
+After restoring a volume backup or moving the store to another server, register
+the files that are on disk but missing from the index:
 
 ```bash
-npm run blob:index          # preview: one list pass, no writes
-npm run blob:index:adopt    # write the adopted rows
+npm run images:index          # preview: no writes
+npm run images:index:adopt    # write the adopted rows
 ```
+
+On a server, the same operation is available to an authenticated caller at
+`GET /api/cron/images` (`?execute=true` to write).
 
 ### Local snapshot refresh
 
@@ -225,6 +250,9 @@ the new full-catalogue adapters.
   retailer-offer ID.
 - `GET /api/deals` remains as a compatibility endpoint for offer-level data.
 - `GET /api/health/ready` verifies that the required view and RPC exist.
+- `GET /api/health/live` answers 200 while the process is serving. Container
+  health checks use it, because readiness is a real 503 when the database is
+  not migrated yet.
 
 Responses identify `database`, `local-json` or `demo` as their source. The
 comparison endpoints also report `weekly` cadence and one retained historical
@@ -236,27 +264,62 @@ that those observations are exactly seven days apart.
 
 ## Deployment
 
-`npm run build:vercel` runs tests, type checking, lint, migration guards and the
-Next.js production build. In the Vercel Production environment it applies
-tracked Supabase migrations before building. Preview builds never migrate the
-production database.
+Two containers and one volume, described by `docker-compose.yml`:
 
-Vercel sends `CRON_SECRET` as the bearer token for scheduled calls. Manual
-checks use the same authorization:
+- `app` — the Next.js server, the `/api/cron/*` collection routes and the
+  `/product-images/*` files.
+- `scheduler` — Alpine plus busybox `crond`, calling those routes on the
+  schedule in `deploy/cron-jobs.json`.
+- `product-images` — the volume the mirrored images live on.
+
+On the server:
+
+```bash
+cp .env.example .env                                   # then fill it in
+docker compose pull
+docker compose --profile migrate run --rm migrate      # apply migrations
+docker compose up -d
+```
+
+[docs/deploy-baota.md](docs/deploy-baota.md) is the full walkthrough in
+Chinese, including the aaPanel/Baota reverse proxy, HTTPS, PostgreSQL manager
+setup, backups and troubleshooting.
+
+### Images and CI
+
+`.github/workflows/ci.yml` runs the tests, type check, lint and build on every
+pull request. `.github/workflows/docker-publish.yml` builds both Dockerfiles on
+a pull request, and on a merge to `main` pushes them to the repository owner's
+GitHub Container Registry:
+
+- `ghcr.io/<owner>/auckland-bargain`
+- `ghcr.io/<owner>/auckland-bargain-scheduler`
+
+Tags are `latest` on the default branch, `sha-<commit>` for every build, and
+semver tags for `v*` releases. Roll back by pointing `APP_IMAGE` at an older
+`sha-` tag. A fork publishes into its own namespace, so a pull request merged
+upstream is what updates the images the upstream deployment pulls.
+
+### Scheduling and authorization
+
+The scheduler sends `CRON_SECRET` as a bearer token; every `/api/cron` route
+rejects anything else. The same call by hand:
 
 ```bash
 curl -H "Authorization: Bearer $CRON_SECRET" \
-  https://your-project.vercel.app/api/cron/woolworths
+  http://127.0.0.1:3000/api/cron/woolworths
 
 curl -H "Authorization: Bearer $CRON_SECRET" \
-  https://your-project.vercel.app/api/cron/supermarkets
-
-curl -H "Authorization: Bearer $CRON_SECRET" \
-  "https://your-project.vercel.app/api/cron/collect?limit=1"
+  "http://127.0.0.1:3000/api/cron/collect?limit=1"
 ```
 
-The queue itself is inspected and seeded with service-role credentials, never
-from the browser or a cron route:
+`COLLECTION_JOB_LIMIT`, `COLLECTION_JOB_MAX_LIMIT` and
+`COLLECTION_CLAIM_DEADLINE_MS` bound one queue drain. These used to be dictated
+by a serverless function's 300-second ceiling; on a server you own, raise them
+to whatever the machine can actually sustain.
+
+The queue itself is inspected and seeded with database credentials, never from
+the browser or a cron route:
 
 ```bash
 npm run queue:sync              # preview data/stores.json against the database
@@ -265,10 +328,6 @@ npm run queue:status            # eligible targets, this week's jobs, expired le
 npm run queue:enqueue           # queue this NZ week (idempotent)
 npm run queue:work              # run one claimed job locally
 ```
-
-Create a public Vercel Blob store if retailer images should be copied to stable
-URLs. If Blob is unavailable, price ingestion continues with the upstream image
-URL.
 
 ## Checks
 

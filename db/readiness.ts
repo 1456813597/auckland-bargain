@@ -1,4 +1,4 @@
-import { getSupabaseAdmin, isSupabaseConfigured } from '@/db/supabase';
+import { getDatabase, isDatabaseConfigured } from '@/db/client';
 
 type ReadinessRpcResult = {
   schemaVersion?: unknown;
@@ -14,7 +14,7 @@ export type DatabaseReadiness = {
   ready: boolean;
   schemaVersion: string | null;
   checks: {
-    supabaseConfigured: boolean;
+    databaseConfigured: boolean;
     readinessFunction: boolean;
     currentDeals: boolean;
     claimCollectionRun: boolean;
@@ -27,12 +27,12 @@ export type DatabaseReadiness = {
 };
 
 export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
-  if (!isSupabaseConfigured()) {
+  if (!isDatabaseConfigured()) {
     return {
       ready: false,
       schemaVersion: null,
       checks: {
-        supabaseConfigured: false,
+        databaseConfigured: false,
         readinessFunction: false,
         currentDeals: false,
         claimCollectionRun: false,
@@ -41,18 +41,18 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
         durableCollectionQueue: false,
         productImageMirrorIndex: false,
       },
-      error: 'Supabase is not configured.',
+      error: 'No database is configured.',
     };
   }
 
-  const supabase = getSupabaseAdmin();
+  const supabase = getDatabase();
   const { data, error } = await supabase.rpc('database_readiness');
   if (error) {
     return {
       ready: false,
       schemaVersion: null,
       checks: {
-        supabaseConfigured: true,
+        databaseConfigured: true,
         readinessFunction: false,
         currentDeals: false,
         claimCollectionRun: false,
@@ -91,7 +91,7 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
     schemaVersion:
       typeof rpc.schemaVersion === 'string' ? rpc.schemaVersion : null,
     checks: {
-      supabaseConfigured: true,
+      databaseConfigured: true,
       readinessFunction: true,
       currentDeals,
       claimCollectionRun,

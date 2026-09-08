@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createClient } from '@supabase/supabase-js';
-import { reconcileProductMatches } from '../lib/matching/supabase';
+import type { Database } from '../db/client';
+import { reconcileProductMatches } from '../lib/matching/database';
 import type { RawOffer } from '../lib/collectors/types';
 
 function offer(id: string): RawOffer {
@@ -86,7 +87,9 @@ test('pages through capped candidates and does not reuse a canonical product wit
     },
   });
   const result = await reconcileProductMatches({
-    supabase,
+    // Cast at the boundary: the client's generics are far deeper than the
+    // narrow `Database` contract the matcher depends on.
+    supabase: supabase as unknown as Database,
     retailerSlug: 'test',
     productIds: new Map([
       ['a', 10],
@@ -140,7 +143,9 @@ test('seeds and accepts a large first catalogue in bounded batch writes', async 
     offer(String(index)),
   );
   const result = await reconcileProductMatches({
-    supabase,
+    // Cast at the boundary: the client's generics are far deeper than the
+    // narrow `Database` contract the matcher depends on.
+    supabase: supabase as unknown as Database,
     retailerSlug: 'test',
     productIds: new Map(
       offers.map((item, index) => [item.sourceProductId, index + 1]),
@@ -174,7 +179,9 @@ test('batches existing product IDs instead of constructing an oversized URL', as
     offer(String(index)),
   );
   const result = await reconcileProductMatches({
-    supabase,
+    // Cast at the boundary: the client's generics are far deeper than the
+    // narrow `Database` contract the matcher depends on.
+    supabase: supabase as unknown as Database,
     retailerSlug: 'test',
     productIds: new Map(
       offers.map((item, index) => [item.sourceProductId, index + 1]),

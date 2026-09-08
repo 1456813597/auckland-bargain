@@ -1,5 +1,5 @@
-import { getSupabaseAdmin } from '@/db/supabase';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { getDatabase, type Database } from '@/db/client';
+
 import {
   advertisedDiscountPercent,
   dealEvidencePercent,
@@ -99,9 +99,7 @@ function historyPoints(
 
 const DATABASE_PAGE_SIZE = 500;
 
-export async function readCurrentRows(
-  supabase: SupabaseClient = getSupabaseAdmin(),
-) {
+export async function readCurrentRows(supabase: Database = getDatabase()) {
   const rows: CurrentDealRow[] = [];
   let cursor = 0;
   for (;;) {
@@ -126,7 +124,7 @@ export async function readCurrentRows(
 }
 
 export async function readOfferHistory(
-  supabase: SupabaseClient,
+  supabase: Database,
   productIds: number[],
 ) {
   const batches: number[][] = [];
@@ -166,7 +164,7 @@ export async function readOfferHistory(
 }
 
 async function getOffers(strongOnly: boolean) {
-  const supabase = getSupabaseAdmin();
+  const supabase = getDatabase();
   const rows = await readCurrentRows();
   if (rows.length === 0) {
     return { deals: [] as Deal[], updatedAt: null as string | null };

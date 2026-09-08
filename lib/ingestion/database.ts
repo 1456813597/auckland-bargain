@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 
-import { getSupabaseAdmin } from '@/db/supabase';
+import { getDatabase } from '@/db/client';
 import type { CollectorStore, RawOffer } from '@/lib/collectors/types';
-import { reconcileProductMatches } from '@/lib/matching/supabase';
+import { reconcileProductMatches } from '@/lib/matching/database';
 import { mirrorOfferImages } from '@/lib/storage/product-images';
 
 const WRITE_BATCH_SIZE = 250;
@@ -39,7 +39,7 @@ export async function createCollectionRun(
   storeSourceId: string,
   metadata: Record<string, unknown> = {},
 ) {
-  const supabase = getSupabaseAdmin();
+  const supabase = getDatabase();
   const { data, error } = await supabase.rpc('claim_collection_run', {
     p_retailer_slug: retailerSlug,
     p_store_source_id: storeSourceId,
@@ -61,7 +61,7 @@ export class CollectionAlreadyRunningError extends Error {
 export async function markCollectionRunFailed(runId: number, error: unknown) {
   const message =
     error instanceof Error ? error.message : 'Unknown collection failure';
-  const { error: updateError } = await getSupabaseAdmin()
+  const { error: updateError } = await getDatabase()
     .from('collection_runs')
     .update({
       status: 'failed',
@@ -81,7 +81,7 @@ export type RetailerIdentity = {
 };
 
 async function upsertRetailer(retailer: RetailerIdentity) {
-  const { data, error } = await getSupabaseAdmin()
+  const { data, error } = await getDatabase()
     .from('retailers')
     .upsert(
       {
@@ -100,7 +100,7 @@ async function upsertRetailer(retailer: RetailerIdentity) {
 }
 
 async function upsertStore(retailerId: number, store: CollectorStore) {
-  const { data, error } = await getSupabaseAdmin()
+  const { data, error } = await getDatabase()
     .from('stores')
     .upsert(
       {
@@ -128,7 +128,7 @@ async function upsertProducts(
   offers: RawOffer[],
 ) {
   const ids = new Map<string, number>();
-  const supabase = getSupabaseAdmin();
+  const supabase = getDatabase();
   const offersWithStoredImages = await mirrorOfferImages(retailerSlug, offers, {
     database: supabase,
   });
@@ -184,7 +184,7 @@ export async function ingestOffers(input: {
     input.retailer.slug,
     input.offers,
   );
-  const supabase = getSupabaseAdmin();
+  const supabase = getDatabase();
   const matching = await reconcileProductMatches({
     supabase,
     retailerSlug: input.retailer.slug,

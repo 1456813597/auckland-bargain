@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { SupabaseClient } from '@supabase/supabase-js';
-
+import type { Database } from '@/db/client';
 import type { RawOffer } from '@/lib/collectors/types';
 import {
   canonicalProductSlug,
@@ -106,7 +105,7 @@ function canonicalProductRow(
   };
 }
 
-async function loadCandidates(supabase: SupabaseClient, offers: RawOffer[]) {
+async function loadCandidates(supabase: Database, offers: RawOffer[]) {
   const brands = [
     ...new Set(
       offers.map((offer) => normalizedBrand(offer.brand)).filter(Boolean),
@@ -168,7 +167,7 @@ async function loadCandidates(supabase: SupabaseClient, offers: RawOffer[]) {
 }
 
 async function excludeSameRetailerCandidates(
-  supabase: SupabaseClient,
+  supabase: Database,
   retailerSlug: string,
   candidates: CanonicalRow[],
 ) {
@@ -210,7 +209,7 @@ async function excludeSameRetailerCandidates(
 }
 
 export async function reconcileProductMatches(input: {
-  supabase: SupabaseClient;
+  supabase: Database;
   retailerSlug: string;
   productIds: Map<string, number>;
   offers: RawOffer[];

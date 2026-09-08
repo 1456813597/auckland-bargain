@@ -117,7 +117,7 @@ describe('durable store collection queue in Postgres', () => {
       }>('select database_readiness() as result')
     ).rows[0].result;
     assert.equal(ready.durableCollectionQueue, true);
-    assert.equal(ready.schemaVersion, '20260907140000');
+    assert.equal(ready.schemaVersion, '20260909120000');
     for (const role of ['anon', 'authenticated']) {
       for (const signature of [
         'enqueue_weekly_collection_jobs(text)',
